@@ -2,7 +2,27 @@ import Foundation
 
 /// Metres, seconds and seconds/km throughout. No location or audio dependencies.
 public struct PaceEngine {
-    public enum Cue: Equatable { case speedUp, slowDown }
+    public enum Cue: CaseIterable, Hashable {
+        case onTarget, speedUp, slowDown, speedUpMore, slowDownMore
+
+        public var interval: TimeInterval {
+            switch self {
+            case .onTarget: return 120
+            case .speedUp, .slowDown: return 60
+            case .speedUpMore, .slowDownMore: return 30
+            }
+        }
+
+        public static func classify(pace: Double?, target: Double) -> Cue {
+            guard let pace else { return .speedUpMore }
+            let difference = pace - target
+            if difference > 60 { return .speedUpMore }
+            if difference > 20 { return .speedUp }
+            if difference < -60 { return .slowDownMore }
+            if difference < -20 { return .slowDown }
+            return .onTarget
+        }
+    }
     private struct Sample { let time: TimeInterval; let speed: Double }
     private var samples: [Sample] = []
     private var lastCueTime: TimeInterval?
@@ -19,7 +39,7 @@ public struct PaceEngine {
     /// Call only with GPS samples that have usable accuracy.
     @discardableResult
     public mutating func ingest(speed: Double, at time: TimeInterval,
-                                targetPace: Double) -> Cue? {
+                                targetPace: Double, coachingAvailable: Bool = true) -> Cue? {
         guard speed.isFinite, time.isFinite, targetPace.isFinite,
               speed >= 0, speed <= 8, targetPace > 0 else { return nil }
         if let previous = samples.last {
@@ -48,16 +68,11 @@ public struct PaceEngine {
         }
         let mean = distance / (time - first.time)
         speedMetresPerSecond = mean
-        guard lastCueTime.map({ time - $0 >= 30 }) ?? true else { return nil }
-        let cue: Cue?
-        if mean < 0.5 {
-            cue = .speedUp
-        } else {
-            let pace = 1000 / mean
-            cue = pace > targetPace + 20 ? .speedUp
-                : pace < targetPace - 20 ? .slowDown : nil
-        }
-        if cue != nil { lastCueTime = time }
+        guard coachingAvailable else { return nil }
+        let cue = Cue.classify(pace: paceSecondsPerKilometre, target: targetPace)
+        // A worsening pace can shorten the wait, but no transition bypasses 30 seconds.
+        guard lastCueTime.map({ time - $0 >= cue.interval }) ?? true else { return nil }
+        lastCueTime = time
         return cue
     }
 

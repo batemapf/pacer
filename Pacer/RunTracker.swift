@@ -25,6 +25,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     private let location = CLLocationManager()
     private let speech = AVSpeechSynthesizer()
     private var engine = PaceEngine()
+    private var phrases = CoachingPhrases()
     private var startedAt: Date?
     private var lastFix: Date?
     private var timer: Timer?
@@ -115,7 +116,8 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
               lastFix.map({ fix.timestamp.timeIntervalSince($0) >= 1 }) ?? true else { return }
         lastFix = fix.timestamp
         let cue = engine.ingest(speed: fix.speed, at: fix.timestamp.timeIntervalSinceReferenceDate,
-                                targetPace: targetPaceSecondsPerKilometre)
+                                targetPace: targetPaceSecondsPerKilometre,
+                                coachingAvailable: coachingEnabled && !speech.isSpeaking)
         distanceMetres = engine.distanceMetres
         paceSecondsPerKilometre = engine.paceSecondsPerKilometre
         if engine.speedMetresPerSecond == nil {
@@ -125,7 +127,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         } else {
             status = "Tracking your outdoor pace."
         }
-        if let cue, coachingEnabled { speak(cue == .speedUp ? "Speed up" : "Slow down") }
+        if let cue { speak(phrases.next(for: cue)) }
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {

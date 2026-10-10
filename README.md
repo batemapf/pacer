@@ -1,8 +1,8 @@
 # Pacer
 
 A tiny native iPhone app for outdoor jogging. Set a target pace (minutes/km or minutes/mile),
-start a run, and hear “Speed up” or “Slow down” when your measured pace is more
-than 20 seconds/km off target. No account, server, API key, or external sensor.
+start a run, and hear playful praise or progressively stronger pace corrections.
+No account, server, API key, or external sensor.
 
 ## Run on an iPhone
 
@@ -35,8 +35,29 @@ Core Location supplies GPS speed and accuracy estimates from the iPhone's
 built-in positioning hardware. Pacer averages speed over a rolling 15-second
 window, then converts it to minutes/km or minutes/mile. It rejects old fixes, poor accuracy,
 negative speed, and speeds above 8 m/s. It waits for 10 seconds of samples before
-coaching and limits cues to once every 30 seconds. Below 0.5 m/s it shows no
+coaching and never speaks more often than once every 30 seconds. Below 0.5 m/s it shows no
 numeric pace and can prompt you to speed up.
+
+### Coaching personality and timing
+
+The app has 100 short phrases: 40 affirmations and 15 each for gentle/strong
+speed-up and slow-down cues. Each category is shuffled, with no repeats until
+its list is exhausted and no immediate repeat across shuffle cycles.
+
+| Difference from target | Coaching | Minimum time since last cue |
+| --- | --- | --- |
+| Within ±20 sec/km (about ±32 sec/mile) | Playful encouragement | 120 seconds |
+| More than 20, up to 60 sec/km off (about 32–97 sec/mile) | Gentle directional nudge | 60 seconds |
+| More than 60 sec/km off (about 97 sec/mile) | Clearer directional correction | 30 seconds |
+
+These are delays between eligible cues, not fixed alarms: GPS still needs to be
+usable, coaching enabled, and speech idle. The first cue can play after the
+10-second GPS settling window. Worsening pace shortens the next wait to 30 seconds;
+getting back on target slows the chatter down again. Unit changes preserve the
+same physical bands. Muting coaching does not consume the cue cooldown.
+
+Examples: “Your feet have formed a successful committee,” “Add a sprinkle of
+hustle,” and “We ordered a jog, not a rocket launch.”
 
 Distance is an **estimate** from integrating accepted speed readings. Gaps longer
 than eight seconds are excluded, so distance can undercount during outages.

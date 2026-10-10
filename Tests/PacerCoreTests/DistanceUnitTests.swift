@@ -15,9 +15,10 @@ final class DistanceUnitTests: XCTestCase {
         let target = DistanceUnit.miles.secondsPerKilometre(displayedPace: 600)
         XCTAssertEqual(target, 372.82271534, accuracy: 0.000001)
         var engine = PaceEngine()
-        for time in 0...45 {
-            XCTAssertNil(engine.ingest(speed: 1609.344 / 600, at: Double(time), targetPace: target))
+        let cues = (0...45).compactMap {
+            engine.ingest(speed: 1609.344 / 600, at: Double($0), targetPace: target)
         }
+        XCTAssertEqual(cues, [.onTarget])
         XCTAssertEqual(DistanceUnit.miles.paceText(secondsPerKilometre: engine.paceSecondsPerKilometre), "10:00")
     }
 

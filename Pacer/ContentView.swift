@@ -63,7 +63,7 @@ struct ContentView: View {
                     Text(run.isRunning ? "Stop run" : "Start run")
                         .frame(maxWidth: .infinity).padding(.vertical, 10)
                 }.buttonStyle(.borderedProminent).tint(run.isRunning ? .red : .blue)
-                Text("Allow Precise Location. Keep your phone with you. Audio nudges start after GPS settles, at most once every 30 seconds.")
+                Text("Allow Precise Location. Keep your phone with you. Coaching starts after GPS settles: praise every 2 minutes, gentle nudges every minute, bigger corrections every 30 seconds.")
                     .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }.padding(24)
         }
