@@ -71,4 +71,16 @@ final class PaceEngineTests: XCTestCase {
         XCTAssertNil(engine.ingest(speed: 3, at: 10.5, targetPace: 360))
         XCTAssertEqual(engine.distanceMetres, distance)
     }
+
+    func testTargetCanChangeDuringARunWithoutRestarting() {
+        var engine = PaceEngine()
+        XCTAssertTrue(feed(&engine, speed: 3, target: 1000 / 3).isEmpty)
+        let distance = engine.distanceMetres
+        XCTAssertEqual(engine.ingest(speed: 3, at: 11, targetPace: 250), .speedUp)
+        XCTAssertEqual(engine.distanceMetres, distance + 3, accuracy: 0.001)
+        XCTAssertEqual(engine.paceSecondsPerKilometre!, 1000 / 3, accuracy: 0.001)
+        // Another target change must respect the original 30-second cue cooldown.
+        XCTAssertTrue(feed(&engine, speed: 3, from: 12, through: 40, target: 400).isEmpty)
+        XCTAssertEqual(engine.ingest(speed: 3, at: 41, targetPace: 400), .slowDown)
+    }
 }

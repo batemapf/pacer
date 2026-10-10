@@ -5,10 +5,19 @@ import AVFoundation
 
 final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, AVSpeechSynthesizerDelegate {
     @Published private(set) var isRunning = false
-    @Published private(set) var paceText = "—:—"
+    @Published private(set) var paceSecondsPerKilometre: Double? = nil
     @Published private(set) var elapsedText = "0:00"
     @Published private(set) var distanceMetres = 0.0
     @Published private(set) var status = "Ready for an outdoor run."
+    @Published var targetPaceSecondsPerKilometre = 360.0 {
+        didSet {
+            // Cancel a nudge for the old target. The next GPS fix uses the new target
+            // while retaining distance, smoothing, and the existing cue cooldown.
+            if targetPaceSecondsPerKilometre != oldValue {
+                speech.stopSpeaking(at: .immediate)
+            }
+        }
+    }
     @Published var coachingEnabled = true {
         didSet { if !coachingEnabled { speech.stopSpeaking(at: .immediate) } }
     }
@@ -16,7 +25,6 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     private let location = CLLocationManager()
     private let speech = AVSpeechSynthesizer()
     private var engine = PaceEngine()
-    private var targetPace = 360.0
     private var startedAt: Date?
     private var lastFix: Date?
     private var timer: Timer?
@@ -35,9 +43,8 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         location.showsBackgroundLocationIndicator = true
     }
 
-    func start(targetPace: Double) {
+    func start() {
         guard !isRunning else { return }
-        self.targetPace = targetPace
         switch location.authorizationStatus {
         case .notDetermined:
             pendingStart = true
@@ -52,7 +59,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             lastFix = nil
             startedAt = Date()
             distanceMetres = 0
-            paceText = "—:—"
+            paceSecondsPerKilometre = nil
             elapsedText = "0:00"
             isRunning = true
             status = "Acquiring GPS; walk or jog outside for at least 10 seconds."
@@ -83,7 +90,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         elapsedText = String(format: "%d:%02d", seconds / 60, seconds % 60)
         if Date().timeIntervalSince(lastFix ?? start) > 8 {
             engine.loseSignal()
-            paceText = "—:—"
+            paceSecondsPerKilometre = nil
             status = "Waiting for a reliable GPS signal. Coaching paused."
         }
     }
@@ -94,7 +101,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
                           manager.authorizationStatus != .authorizedWhenInUse)) {
             stop()
             status = "Location access changed. Enable Precise Location and start again."
-        } else if pendingStart { start(targetPace: targetPace) }
+        } else if pendingStart { start() }
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -108,15 +115,15 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
               lastFix.map({ fix.timestamp.timeIntervalSince($0) >= 1 }) ?? true else { return }
         lastFix = fix.timestamp
         let cue = engine.ingest(speed: fix.speed, at: fix.timestamp.timeIntervalSinceReferenceDate,
-                                targetPace: targetPace)
+                                targetPace: targetPaceSecondsPerKilometre)
         distanceMetres = engine.distanceMetres
-        paceText = engine.paceSecondsPerKilometre.map(Self.formatPace) ?? "—:—"
+        paceSecondsPerKilometre = engine.paceSecondsPerKilometre
         if engine.speedMetresPerSecond == nil {
             status = "GPS acquired; settling the pace estimate."
         } else if engine.paceSecondsPerKilometre == nil {
             status = "Stationary or walking very slowly. Stop the run to take a break."
         } else {
-            status = "Coaching toward \(Self.formatPace(targetPace)) / km."
+            status = "Tracking your outdoor pace."
         }
         if let cue, coachingEnabled { speak(cue == .speedUp ? "Speed up" : "Slow down") }
     }
@@ -127,7 +134,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             status = "Location unavailable. Check Location Services and Pacer permissions."
         } else {
             engine.loseSignal()
-            paceText = "—:—"
+            paceSecondsPerKilometre = nil
             status = "GPS temporarily unavailable. Coaching paused."
         }
     }
@@ -163,10 +170,5 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
 
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
         releaseAudio()
-    }
-
-    static func formatPace(_ seconds: Double) -> String {
-        let rounded = Int(seconds.rounded())
-        return String(format: "%d:%02d", rounded / 60, rounded % 60)
     }
 }

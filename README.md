@@ -1,6 +1,6 @@
 # Pacer
 
-A tiny native iPhone app for outdoor jogging. Set a target pace (minutes/km),
+A tiny native iPhone app for outdoor jogging. Set a target pace (minutes/km or minutes/mile),
 start a run, and hear “Speed up” or “Slow down” when your measured pace is more
 than 20 seconds/km off target. No account, server, API key, or external sensor.
 
@@ -15,7 +15,15 @@ than 20 seconds/km off target. No account, server, API key, or external sensor.
    Location** on. Start the run while the app is in the foreground.
 5. Go outside, keep the phone with you, and allow at least 10 seconds of usable
    GPS readings. Use the Spoken coaching toggle to silence cues. Stop the run
-   when finished; starting again resets the totals.
+   when finished; starting again resets the totals. Adjust the target during a run
+   with the slider or **Faster / Slower** buttons (15 seconds per selected unit).
+   Changes apply to the next usable GPS reading without restarting the run; the
+   30-second coaching cooldown still applies.
+
+Use the **Kilometres / Miles** toggle to change both pace and distance displays,
+including during a run. Switching units preserves the physical target pace and
+all run totals. Your unit preference is remembered. The target range covers the
+same speeds: 4:00–12:00/km, approximately 6:26–19:19/mile.
 
 An app icon and distribution provisioning are not included; this is a development
 prototype, not an App Store release.
@@ -24,7 +32,7 @@ prototype, not an App Store release.
 
 Core Location supplies GPS speed and accuracy estimates from the iPhone's
 built-in positioning hardware. Pacer averages speed over a rolling 15-second
-window, then converts it to minutes/km. It rejects old fixes, poor accuracy,
+window, then converts it to minutes/km or minutes/mile. It rejects old fixes, poor accuracy,
 negative speed, and speeds above 8 m/s. It waits for 10 seconds of samples before
 coaching and limits cues to once every 30 seconds. Below 0.5 m/s it shows no
 numeric pace and can prompt you to speed up.
@@ -32,7 +40,7 @@ numeric pace and can prompt you to speed up.
 Distance is an **estimate** from integrating accepted speed readings. Gaps longer
 than eight seconds are excluded, so distance can undercount during outages.
 No route is recorded. Run state exists only in memory; there is no saved history,
-pause button, mile setting, Apple Watch support, or HealthKit integration.
+pause button, Apple Watch support, or HealthKit integration.
 
 Speech uses an audio session that requests music ducking and interruption of
 other spoken audio, then releases the session after each cue. Background location
@@ -98,7 +106,9 @@ GitHub Actions must be enabled for the repository and allow `actions/checkout`.
 Private repositories use the account's included Actions allowance or paid usage;
 check Actions billing and budgets if GitHub refuses to start a job.
 
-Before relying on coaching, verify on a real iPhone: location denial and Precise
+Before relying on coaching, verify on a real iPhone: changing the target during a
+run, switching units without changing the target speed or resetting distance,
+location denial and Precise
 Location off, settling outdoors, both cue directions, the cooldown, loss and
 recovery of GPS, music/headphone ducking, several minutes with the screen locked,
 stopping (no subsequent cues/location indicator), and force-quit behavior.
