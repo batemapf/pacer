@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A private TestFlight handoff guide for the Apple Developer account owner signing Pacer.">
+  <title>Pacer · Private TestFlight setup</title>
+  <style>
+    :root { color-scheme: light; --ink: #172c28; --muted: #536661; --green: #155b43; --paper: #f6f7f1; --line: #d9e1d6; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.65 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { max-width: 860px; margin: auto; padding: 56px 24px 64px; }
+    .eyebrow { color: var(--green); font-size: 13px; font-weight: 750; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { font-size: clamp(36px, 7vw, 60px); line-height: 1.06; letter-spacing: -.045em; margin: 16px 0 22px; }
+    h2 { font-size: 25px; line-height: 1.3; letter-spacing: -.02em; margin: 36px 0 16px; }
+    h3 { font-size: 20px; line-height: 1.35; margin: 0 0 12px; }
+    p { margin: 0 0 14px; }
+    .intro { font-size: 20px; color: var(--muted); max-width: 680px; }
+    a { color: var(--green); text-underline-offset: 3px; }
+    a:focus-visible, button:focus-visible { outline: 3px solid #dc8a25; outline-offset: 5px; }
+    .repo { display: inline-block; padding: 12px 20px; margin: 12px 0 24px; color: white; background: var(--green); border-radius: 10px; font-weight: 650; text-decoration: none; }
+    .note { padding: 18px 20px; border: 1px solid var(--line); border-left: 4px solid var(--green); border-radius: 8px; background: #edf2e7; }
+    ul { padding-left: 24px; margin: 12px 0; }
+    li { margin: 6px 0; }
+    code { font-size: .9em; background: #edf1e8; padding: 2px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+    .steps { list-style: none; counter-reset: step; padding: 0; margin: 0; }
+    .steps > li { counter-increment: step; position: relative; padding: 26px 28px 24px 78px; background: white; border: 1px solid var(--line); border-radius: 14px; margin: 16px 0; }
+    .steps > li::before { content: counter(step); position: absolute; left: 24px; top: 23px; width: 34px; height: 34px; background: #e8efe2; color: var(--green); text-align: center; line-height: 34px; border-radius: 50%; font-weight: 750; }
+    .steps > li p:last-child { margin-bottom: 0; }
+    .detail { color: var(--muted); font-size: 15px; }
+    footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+    @media (max-width: 520px) { main { padding: 32px 18px 40px; } .steps > li { padding: 24px 20px; } .steps > li::before { position: static; display: block; margin-bottom: 14px; } }
+    @media print { body { background: white; font-size: 11pt; } main { padding: 0; } .steps > li { break-inside: avoid; } .repo { background: none; color: var(--green); padding: 0; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">Pacer / Developer handoff</div>
+    <h1>Get Pacer onto<br>private TestFlight.</h1>
+    <p class="intro">For the Apple Developer account owner: sign the iPhone app, upload a build, and invite one friend. No App Store release required.</p>
+    <a class="repo" href="https://github.com/batemapf/pacer">Open the Pacer repository ↗</a>
+    <p class="note"><strong>Public code, private distribution.</strong> The repository and this guide are public. TestFlight access can remain invitation-only: use an email invitation and leave public tester links disabled. Do not share your Apple password.</p>
+  </header>
+
+  <section aria-labelledby="before">
+    <h2 id="before">Have these ready</h2>
+    <ul>
+      <li>A Mac with Xcode 16 or later and an active paid Apple Developer Program membership.</li>
+      <li>Access to your <a href="https://developer.apple.com/account/">Apple Developer account</a> and <a href="https://appstoreconnect.apple.com/">App Store Connect</a>. Accept any outstanding agreements first.</li>
+      <li>Your friend's email address. They need an iPhone running iOS 17 or later and Apple's <a href="https://apps.apple.com/app/testflight/id899247664">TestFlight app</a>.</li>
+      <li>A 1024 × 1024 square app icon, with no transparency. The repository currently does not include one.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="steps">
+    <h2 id="steps">The account owner's steps</h2>
+    <ol class="steps">
+      <li>
+        <h3>Download and open the app project</h3>
+        <p>On <a href="https://github.com/batemapf/pacer">github.com/batemapf/pacer</a>, choose <strong>Code → Download ZIP</strong> and unzip it, or clone the repository. Use the latest <code>main</code> branch.</p>
+        <p>Open <code>Pacer.xcodeproj</code> in Xcode. Opening the folder or <code>Package.swift</code> selects the standalone pace-engine package, which runs tests rather than launching the app.</p>
+      </li>
+      <li>
+        <h3>Choose your paid signing team</h3>
+        <p>In <strong>Xcode → Settings → Accounts</strong>, add your Apple Account. Select the blue Pacer project in the sidebar, then the <strong>Pacer target → Signing &amp; Capabilities</strong>.</p>
+        <p>Enable <strong>Automatically manage signing</strong> and select your paid developer team. Choose a unique bundle identifier, such as <code>com.yourteam.pacer</code>. The current identifier is <code>com.batemapf.pacer</code>; change it if it is unavailable to your team.</p>
+        <p class="detail">Xcode can register the app ID and generate signing assets automatically. If registration is blocked, register an explicit app ID with the identical bundle identifier in <a href="https://developer.apple.com/account/resources/identifiers/list">Certificates, Identifiers &amp; Profiles</a>, then retry signing. Keep the project's background location and audio modes.</p>
+      </li>
+      <li>
+        <h3>Add the missing app icon</h3>
+        <p>In Xcode, create an <strong>Asset Catalog</strong> inside the Pacer folder and include it in the Pacer target. Add an <strong>App Icon</strong> set named <code>AppIcon</code>, then drag in the 1024 × 1024 image. Fill any additional slots Xcode requires.</p>
+        <p>Under the target's <strong>General → App Icons and Launch Screen</strong>, select <code>AppIcon</code> as the app icon source. Keep it in the asset catalog; simply adding a PNG to the project is insufficient.</p>
+      </li>
+      <li>
+        <h3>Create the App Store Connect app record</h3>
+        <p>Open <a href="https://appstoreconnect.apple.com/">App Store Connect</a>, then <strong>My Apps → + → New App</strong>. Choose iOS, an available app name, and a primary language.</p>
+        <p>Select the <strong>same bundle identifier</strong> used in Xcode. Enter any unique internal SKU, such as <code>pacer-private-001</code>, and create the record.</p>
+        <p class="detail">Creating this record does not publish the app or create a public App Store listing.</p>
+      </li>
+      <li>
+        <h3>Archive and upload</h3>
+        <p>In Xcode's toolbar, select the <strong>Pacer</strong> scheme and <strong>Any iOS Device</strong> (the generic device destination, not a simulator). Choose <strong>Product → Archive</strong>.</p>
+        <p>In Organizer, select the archive and choose <strong>Distribute App → App Store Connect → Upload</strong>. Follow the signing and validation prompts and upload.</p>
+        <p class="detail">Fix any icon or signing errors reported during validation. The repository's successful simulator build verifies compilation, but does not verify distribution signing or upload readiness.</p>
+      </li>
+      <li>
+        <h3>Complete the TestFlight build information</h3>
+        <p>After Apple finishes processing the upload, open the app's <strong>TestFlight</strong> tab. Complete any missing export-compliance information according to the actual build. Pacer does not implement its own encryption.</p>
+        <p>Add the beta description, feedback email, and your beta review contact details. No app login or demo credentials are required. Include these review notes:</p>
+        <p class="note">Pacer is an outdoor jogging pace coach. Tap Start run and allow Precise Location. Coaching needs reliable outdoor GPS readings for at least 10 seconds. Set a target pace and enable Spoken coaching to hear speed-up or slow-down prompts. Target pace and miles/km can be changed during a run. There is no account or sign-in.</p>
+      </li>
+      <li>
+        <h3>Invite your friend as an external tester</h3>
+        <p>Under <strong>TestFlight → External Testing</strong>, create a group such as <strong>Private Pacer</strong>, add the uploaded build, and submit it for <strong>TestFlight Beta App Review</strong>. The first external build normally requires review.</p>
+        <p>Add your friend's email to the group. Once the build is approved, enable testing and send the invitation if it has not already been sent. Leave <strong>Public Link</strong> disabled.</p>
+        <p class="detail">Your friend does not need an App Store Connect role or access to your developer account. Use external testing rather than granting account privileges solely to install the app.</p>
+      </li>
+      <li>
+        <h3>Install and test on the iPhone</h3>
+        <p>Your friend opens the email invitation on their iPhone, accepts it in <strong>TestFlight</strong>, and taps <strong>Install</strong>.</p>
+        <p>Allow Precise Location, play music, and start an outdoor run. Check both coaching directions, changes to the target pace, the miles/km toggle, and several minutes with the screen locked. Confirm that music lowers during a prompt and returns afterward.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="renew">
+    <h2 id="renew">Keeping it available</h2>
+    <p>Each TestFlight build expires <strong>90 days after upload</strong>. Before expiry, pull the latest code and upload a replacement build.</p>
+    <p>In this project, the build number is stored directly in <code>Pacer/Info.plist</code>: increment <strong>Bundle version</strong> (<code>CFBundleVersion</code>), currently <code>1</code>, for each upload. Changing only the target's Build setting will not update that literal plist value.</p>
+    <p>Add the replacement build to the same external group and complete any requested review. Keep the developer membership active. Do not submit an App Store version for release unless you later decide you want public distribution.</p>
+  </section>
+
+  <section aria-labelledby="help">
+    <h2 id="help">If something gets stuck</h2>
+    <ul>
+      <li><strong>Only tests run:</strong> open <code>Pacer.xcodeproj</code> and select the Pacer app scheme.</li>
+      <li><strong>Archive is unavailable:</strong> select the generic iOS device destination rather than a simulator.</li>
+      <li><strong>Bundle ID or signing error:</strong> confirm the paid team and matching unique identifier in Xcode and App Store Connect.</li>
+      <li><strong>Missing app icon:</strong> check asset-catalog target membership and the target's App Icon source.</li>
+      <li><strong>Friend cannot install:</strong> confirm external beta approval, group/build assignment, invitation acceptance, and an unexpired build.</li>
+    </ul>
+    <p class="detail">Apple may change menu wording. See Apple's <a href="https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview/">TestFlight overview</a> for current distribution requirements.</p>
+  </section>
+  <footer>Pacer · <a href="https://github.com/batemapf/pacer">Source code</a> · This guide contains no signing credentials or tester email addresses.</footer>
+</main>
+</body>
+</html>
