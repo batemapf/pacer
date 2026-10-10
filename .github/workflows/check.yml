@@ -15,9 +15,36 @@ jobs:
         run: |
           xcodebuild -version
           swift --version
+      - name: Validate TestFlight scripts and profile checks
+        run: |
+          bash -n scripts/publish-testflight.sh
+          python3 -m unittest discover -s scripts/tests -v
       - name: Test pace engine
         run: swift test
       - name: Build iOS app without signing
         run: xcodebuild -project Pacer.xcodeproj -scheme Pacer -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build
       - name: Build device release and app icon without signing
         run: xcodebuild -project Pacer.xcodeproj -scheme Pacer -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build
+  testflight:
+    name: Upload private TestFlight build
+    needs: check
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.TESTFLIGHT_ENABLED == 'true'
+    runs-on: macos-15
+    timeout-minutes: 30
+    environment: testflight
+    concurrency:
+      group: pacer-testflight
+      cancel-in-progress: false
+    env:
+      IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID }}
+      IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
+      ASC_API_KEY_ID: ${{ vars.ASC_API_KEY_ID }}
+      ASC_API_ISSUER_ID: ${{ vars.ASC_API_ISSUER_ID }}
+      IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+      IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+      IOS_APP_STORE_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_PROFILE_BASE64 }}
+      ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sign, archive, and upload to App Store Connect
+        run: bash scripts/publish-testflight.sh
