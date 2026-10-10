@@ -1,0 +1,172 @@
+import Foundation
+import Combine
+import CoreLocation
+import AVFoundation
+
+final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, AVSpeechSynthesizerDelegate {
+    @Published private(set) var isRunning = false
+    @Published private(set) var paceText = "—:—"
+    @Published private(set) var elapsedText = "0:00"
+    @Published private(set) var distanceMetres = 0.0
+    @Published private(set) var status = "Ready for an outdoor run."
+    @Published var coachingEnabled = true {
+        didSet { if !coachingEnabled { speech.stopSpeaking(at: .immediate) } }
+    }
+
+    private let location = CLLocationManager()
+    private let speech = AVSpeechSynthesizer()
+    private var engine = PaceEngine()
+    private var targetPace = 360.0
+    private var startedAt: Date?
+    private var lastFix: Date?
+    private var timer: Timer?
+    private var pendingStart = false
+    private var audioActive = false
+
+    override init() {
+        super.init()
+        location.delegate = self
+        speech.delegate = self
+        location.activityType = .fitness
+        location.desiredAccuracy = kCLLocationAccuracyBest
+        location.distanceFilter = kCLDistanceFilterNone
+        location.pausesLocationUpdatesAutomatically = false
+        location.allowsBackgroundLocationUpdates = true
+        location.showsBackgroundLocationIndicator = true
+    }
+
+    func start(targetPace: Double) {
+        guard !isRunning else { return }
+        self.targetPace = targetPace
+        switch location.authorizationStatus {
+        case .notDetermined:
+            pendingStart = true
+            location.requestWhenInUseAuthorization()
+        case .authorizedAlways, .authorizedWhenInUse:
+            guard location.accuracyAuthorization == .fullAccuracy else {
+                status = "Enable Precise Location for Pacer in Settings to measure pace."
+                return
+            }
+            pendingStart = false
+            engine = PaceEngine()
+            lastFix = nil
+            startedAt = Date()
+            distanceMetres = 0
+            paceText = "—:—"
+            elapsedText = "0:00"
+            isRunning = true
+            status = "Acquiring GPS; walk or jog outside for at least 10 seconds."
+            location.startUpdatingLocation()
+            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+                self?.tick()
+            }
+        default:
+            pendingStart = false
+            status = "Allow Location access for Pacer in Settings before starting."
+        }
+    }
+
+    func stop() {
+        pendingStart = false
+        location.stopUpdatingLocation()
+        timer?.invalidate()
+        timer = nil
+        isRunning = false
+        speech.stopSpeaking(at: .immediate)
+        releaseAudio()
+        status = "Run ended. Starting again resets the totals."
+    }
+
+    private func tick() {
+        guard isRunning, let start = startedAt else { return }
+        let seconds = max(0, Int(Date().timeIntervalSince(start)))
+        elapsedText = String(format: "%d:%02d", seconds / 60, seconds % 60)
+        if Date().timeIntervalSince(lastFix ?? start) > 8 {
+            engine.loseSignal()
+            paceText = "—:—"
+            status = "Waiting for a reliable GPS signal. Coaching paused."
+        }
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        if isRunning && (manager.accuracyAuthorization != .fullAccuracy ||
+                         (manager.authorizationStatus != .authorizedAlways &&
+                          manager.authorizationStatus != .authorizedWhenInUse)) {
+            stop()
+            status = "Location access changed. Enable Precise Location and start again."
+        } else if pendingStart { start(targetPace: targetPace) }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard isRunning else { return }
+        // Use only the latest fix; cached background batches must not trigger old cues.
+        guard let fix = locations.last,
+              abs(fix.timestamp.timeIntervalSinceNow) <= 3,
+              fix.horizontalAccuracy >= 0, fix.horizontalAccuracy <= 20,
+              fix.speedAccuracy >= 0, fix.speedAccuracy <= 1.5,
+              fix.speed >= 0, fix.speed <= 8,
+              lastFix.map({ fix.timestamp.timeIntervalSince($0) >= 1 }) ?? true else { return }
+        lastFix = fix.timestamp
+        let cue = engine.ingest(speed: fix.speed, at: fix.timestamp.timeIntervalSinceReferenceDate,
+                                targetPace: targetPace)
+        distanceMetres = engine.distanceMetres
+        paceText = engine.paceSecondsPerKilometre.map(Self.formatPace) ?? "—:—"
+        if engine.speedMetresPerSecond == nil {
+            status = "GPS acquired; settling the pace estimate."
+        } else if engine.paceSecondsPerKilometre == nil {
+            status = "Stationary or walking very slowly. Stop the run to take a break."
+        } else {
+            status = "Coaching toward \(Self.formatPace(targetPace)) / km."
+        }
+        if let cue, coachingEnabled { speak(cue == .speedUp ? "Speed up" : "Slow down") }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        if let error = error as? CLError, error.code == .denied {
+            stop()
+            status = "Location unavailable. Check Location Services and Pacer permissions."
+        } else {
+            engine.loseSignal()
+            paceText = "—:—"
+            status = "GPS temporarily unavailable. Coaching paused."
+        }
+    }
+
+    private func speak(_ text: String) {
+        guard !speech.isSpeaking else { return }
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .voicePrompt,
+                                    options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
+            try session.setActive(true)
+            audioActive = true
+            let utterance = AVSpeechUtterance(string: text)
+            utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+            speech.speak(utterance)
+        } catch {
+            releaseAudio()
+            status = "Audio unavailable. Pace tracking continues."
+        }
+    }
+
+    private func releaseAudio() {
+        guard audioActive else { return }
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            audioActive = false
+        } catch { /* Retry after the next utterance or when stopping. */ }
+    }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        releaseAudio()
+    }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        releaseAudio()
+    }
+
+    static func formatPace(_ seconds: Double) -> String {
+        let rounded = Int(seconds.rounded())
+        return String(format: "%d:%02d", rounded / 60, rounded % 60)
+    }
+}
