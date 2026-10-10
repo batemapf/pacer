@@ -11,7 +11,7 @@ The source code is public; TestFlight access can remain invitation-only. Your fr
 - A Mac with Xcode 16 or later and an active paid Apple Developer membership.
 - Access to [Apple Developer](https://developer.apple.com/account/) and [App Store Connect](https://appstoreconnect.apple.com/). Accept any outstanding agreements.
 - Your friend's email address and an iPhone running iOS 17 or later.
-- A 1024 × 1024 square app icon without transparency. The repository currently has no icon.
+- The app icon is already included and configured; no icon setup is needed.
 
 ## 1. Open the project
 
@@ -29,11 +29,11 @@ Select the blue Pacer project, then **Pacer target → Signing & Capabilities**:
 
 Xcode can register the app ID automatically. If registration is blocked, register the same explicit bundle ID under [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list), then retry. Keep the project's background location and audio modes.
 
-## 3. Add the app icon
+## 3. Confirm the included app icon
 
-Create an **Asset Catalog** inside the Pacer folder, with membership in the Pacer target. Add an **App Icon** set named `AppIcon` and drag in the 1024 × 1024 icon. Fill any additional slots Xcode requires.
+Pacer already includes an opaque 1024 × 1024 app icon in **`Pacer/Assets.xcassets/AppIcon.appiconset`**. It is configured in the target for both Debug and Release. You do not need to create a catalog or supply an image.
 
-In the target's **General → App Icons and Launch Screen**, select `AppIcon` as the icon source. Simply adding a PNG to the project is insufficient.
+If you want to check it in Xcode, open **Assets → AppIcon** and confirm the target's **General → App Icons and Launch Screen** uses `AppIcon`.
 
 ## 4. Create the App Store Connect record
 

@@ -49,7 +49,7 @@
       <li>A Mac with Xcode 16 or later and an active paid Apple Developer Program membership.</li>
       <li>Access to your <a href="https://developer.apple.com/account/">Apple Developer account</a> and <a href="https://appstoreconnect.apple.com/">App Store Connect</a>. Accept any outstanding agreements first.</li>
       <li>Your friend's email address. They need an iPhone running iOS 17 or later and Apple's <a href="https://apps.apple.com/app/testflight/id899247664">TestFlight app</a>.</li>
-      <li>A 1024 × 1024 square app icon, with no transparency. The repository currently does not include one.</li>
+      <li>The app icon is already included and configured; no icon setup is needed.</li>
     </ul>
   </section>
 
@@ -68,9 +68,9 @@
         <p class="detail">Xcode can register the app ID and generate signing assets automatically. If registration is blocked, register an explicit app ID with the identical bundle identifier in <a href="https://developer.apple.com/account/resources/identifiers/list">Certificates, Identifiers &amp; Profiles</a>, then retry signing. Keep the project's background location and audio modes.</p>
       </li>
       <li>
-        <h3>Add the missing app icon</h3>
-        <p>In Xcode, create an <strong>Asset Catalog</strong> inside the Pacer folder and include it in the Pacer target. Add an <strong>App Icon</strong> set named <code>AppIcon</code>, then drag in the 1024 × 1024 image. Fill any additional slots Xcode requires.</p>
-        <p>Under the target's <strong>General → App Icons and Launch Screen</strong>, select <code>AppIcon</code> as the app icon source. Keep it in the asset catalog; simply adding a PNG to the project is insufficient.</p>
+        <h3>Confirm the included app icon</h3>
+        <p>Pacer includes an opaque 1024 × 1024 icon in <code>Pacer/Assets.xcassets/AppIcon.appiconset</code>, configured for Debug and Release. No catalog or image setup is needed.</p>
+        <p>To check it in Xcode, open <strong>Assets → AppIcon</strong> and confirm the target's <strong>General → App Icons and Launch Screen</strong> uses <code>AppIcon</code>.</p>
       </li>
       <li>
         <h3>Create the App Store Connect app record</h3>

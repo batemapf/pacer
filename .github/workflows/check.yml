@@ -19,3 +19,5 @@ jobs:
         run: swift test
       - name: Build iOS app without signing
         run: xcodebuild -project Pacer.xcodeproj -scheme Pacer -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build
+      - name: Build device release and app icon without signing
+        run: xcodebuild -project Pacer.xcodeproj -scheme Pacer -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build

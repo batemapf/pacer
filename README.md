@@ -25,7 +25,8 @@ including during a run. Switching units preserves the physical target pace and
 all run totals. Your unit preference is remembered. The target range covers the
 same speeds: 4:00–12:00/km, approximately 6:26–19:19/mile.
 
-An app icon and distribution provisioning are not included; this is a development
+An app icon is included and selected for both Debug and Release builds. Distribution
+provisioning still requires your Apple developer team; this is a development
 prototype, not an App Store release.
 
 ## How it measures pace
