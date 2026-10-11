@@ -4,6 +4,7 @@ import AVFoundation
 struct ContentView: View {
     @StateObject private var run = RunTracker()
     @AppStorage("distanceUnit") private var unit: DistanceUnit = .kilometres
+    @AppStorage("colorfulAppearance") private var colorfulAppearance = false
     @State private var showingSettings = false
 
     private var displayedTarget: Binding<Double> {
@@ -37,11 +38,27 @@ struct ContentView: View {
                         .accessibilityLabel("Current pace \(unit.paceText(secondsPerKilometre: run.paceSecondsPerKilometre)), \(unit.paceDescription)")
                     Text(unit.paceDescription).foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity)
+                .padding(colorfulAppearance ? 16 : 0)
+                .background {
+                    if colorfulAppearance {
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color.teal.opacity(0.14))
+                    }
+                }
                 HStack {
                     Label(run.elapsedText, systemImage: "timer")
+                        .tint(colorfulAppearance ? .orange : .accentColor)
                     Spacer()
                     Text(unit.distanceText(metres: run.distanceMetres))
                 }.font(.title3.monospacedDigit())
+                .padding(colorfulAppearance ? 16 : 0)
+                .background {
+                    if colorfulAppearance {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.orange.opacity(0.12))
+                    }
+                }
                 VStack {
                     Text("Target: \(unit.paceText(secondsPerKilometre: run.targetPaceSecondsPerKilometre)) / \(unit.symbol)")
                         .font(.headline).monospacedDigit()
@@ -57,6 +74,14 @@ struct ContentView: View {
                         }.disabled(displayedTarget.wrappedValue >= unit.targetRange.upperBound)
                     }.buttonStyle(.bordered)
                 }
+                .tint(colorfulAppearance ? .purple : .accentColor)
+                .padding(colorfulAppearance ? 16 : 0)
+                .background {
+                    if colorfulAppearance {
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color.purple.opacity(0.12))
+                    }
+                }
                 Text(run.status).font(.callout).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center).frame(minHeight: 44)
                 Button {
@@ -64,9 +89,11 @@ struct ContentView: View {
                 } label: {
                     Text(run.isRunning ? "Stop run" : "Start run")
                         .frame(maxWidth: .infinity).padding(.vertical, 10)
-                }.buttonStyle(.borderedProminent).tint(run.isRunning ? .red : .blue)
+                }.buttonStyle(.borderedProminent)
+                    .tint(run.isRunning ? .red : (colorfulAppearance ? .teal : .blue))
             }.padding(24)
         }
+        .tint(colorfulAppearance ? .teal : .accentColor)
         .sheet(isPresented: $showingSettings) {
             RunSettingsView(run: run, unit: $unit)
         }
@@ -77,6 +104,7 @@ struct ContentView: View {
 private struct RunSettingsView: View {
     @ObservedObject var run: RunTracker
     @Binding var unit: DistanceUnit
+    @AppStorage("colorfulAppearance") private var colorfulAppearance = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @State private var voices: [AVSpeechSynthesisVoice] = []
@@ -101,6 +129,11 @@ private struct RunSettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Toggle("Colorful appearance", isOn: $colorfulAppearance)
+                } footer: {
+                    Text("Add teal, orange, and purple accents to the run screen.")
+                }
                 Section("Units") {
                     Picker("Distance", selection: $unit) {
                         Text("Kilometres").tag(DistanceUnit.kilometres)
@@ -142,6 +175,7 @@ private struct RunSettingsView: View {
                 }
             }
         }
+        .tint(colorfulAppearance ? .teal : .accentColor)
         .onAppear { refreshVoices() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { refreshVoices() }
