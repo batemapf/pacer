@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 import AVFoundation
 
 struct ContentView: View {
@@ -59,6 +60,10 @@ struct ContentView: View {
                             .fill(Color.orange.opacity(0.12))
                     }
                 }
+                if run.isRunning || run.elapsedSeconds > 0 || !run.paceSamples.isEmpty {
+                    PaceGraphView(samples: run.paceSamples, elapsedSeconds: run.elapsedSeconds,
+                                  isRunning: run.isRunning, unit: unit)
+                }
                 VStack {
                     Text("Target: \(unit.paceText(secondsPerKilometre: run.targetPaceSecondsPerKilometre)) / \(unit.symbol)")
                         .font(.headline).monospacedDigit()
@@ -96,6 +101,53 @@ struct ContentView: View {
         .tint(colorfulAppearance ? .teal : .accentColor)
         .sheet(isPresented: $showingSettings) {
             RunSettingsView(run: run, unit: $unit)
+        }
+    }
+}
+
+private struct PaceGraphView: View {
+    let samples: [PaceSample]
+    let elapsedSeconds: Double
+    let isRunning: Bool
+    let unit: DistanceUnit
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(isRunning ? "Live pace" : "Run pace summary").font(.headline)
+            if samples.isEmpty {
+                Text(isRunning ? "Your graph will appear once GPS pace settles." : "No reliable pace readings were recorded.")
+                    .font(.callout).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 120)
+            } else {
+                Chart(samples) { sample in
+                    LineMark(x: .value("Elapsed minutes", sample.elapsedSeconds / 60),
+                             y: .value("Pace", unit.displayedPace(secondsPerKilometre: sample.secondsPerKilometre)),
+                             series: .value("Continuous readings", sample.segment))
+                        .foregroundStyle(Color.accentColor)
+                    PointMark(x: .value("Elapsed minutes", sample.elapsedSeconds / 60),
+                              y: .value("Pace", unit.displayedPace(secondsPerKilometre: sample.secondsPerKilometre)))
+                        .symbolSize(8)
+                        .foregroundStyle(Color.accentColor)
+                }
+                .chartXScale(domain: 0...max(1, max(elapsedSeconds, samples.last?.elapsedSeconds ?? 0) / 60))
+                .chartYScale(domain: .automatic(reversed: true))
+                .chartYAxis {
+                    AxisMarks { value in
+                        AxisGridLine()
+                        AxisTick()
+                        AxisValueLabel {
+                            if let seconds = value.as(Double.self) {
+                                Text(unit.paceText(secondsPerKilometre: unit.secondsPerKilometre(displayedPace: seconds)))
+                            }
+                        }
+                    }
+                }
+                .chartXAxisLabel("Elapsed time (minutes)")
+                .chartYAxisLabel("min/\(unit.symbol) · faster ↑")
+                .frame(height: 200)
+            }
+            Text("Smoothed GPS pace. Gaps indicate unavailable pace. Kept until your next run.")
+                .font(.caption).foregroundStyle(.secondary)
         }
     }
 }
