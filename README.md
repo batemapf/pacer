@@ -4,35 +4,52 @@ A tiny native iPhone app for outdoor jogging. Set a target pace (minutes/km or m
 start a run, and hear playful praise or progressively stronger pace corrections.
 Running needs no account, server, API key, or external sensor. Optional change requests connect directly to GitHub.
 
-## Run on an iPhone
+## Use the app
 
-1. On a Mac with Xcode 16 or later, open `Pacer.xcodeproj`.
-2. Select the **Pacer** scheme and your iPhone (iOS 17 or later).
-3. In Signing & Capabilities, select your Apple development team. Change the
-   bundle identifier if needed for your team. A free Personal Team can be used
-   for local testing, subject to Apple's provisioning limits.
-4. Build and run. Allow Location access **While Using the App**, with **Precise
-   Location** on. Start the run while the app is in the foreground.
-5. Go outside, keep the phone with you, and allow at least 10 seconds of usable
-   GPS readings. Use the Spoken coaching toggle to silence cues. Stop the run
-   when finished; starting again resets the totals. Adjust the target during a run
-   with the slider or **Faster / Slower** buttons (15 seconds per selected unit).
-   Changes apply to the next usable GPS reading without restarting the run; the
-   30-second coaching cooldown still applies.
+Install the private TestFlight build, allow Location access **While Using the App**
+with **Precise Location** enabled, set your target pace, and tap **Start run** outdoors.
+Keep the phone with you and allow at least 10 seconds of usable GPS readings.
 
-Use **Settings → Kilometres / Miles** to change both pace and distance displays,
-including during a run. Switching units preserves the physical target pace and
-all run totals. Your unit preference is remembered. The target range covers the
-same speeds: 4:00–12:00/km, approximately 6:26–19:19/mile.
+Adjust the target during a jog with the slider or **Faster / Slower** buttons.
+Each press changes the target by 15 seconds per selected unit. Changes apply to
+incoming GPS readings without resetting the run. **Stop run** ends tracking;
+starting again resets the totals.
 
-An app icon is included and selected for both Debug and Release builds. Distribution
-provisioning still requires your Apple developer team; this is a development
-prototype, not an App Store release.
+Open the gear button for **Settings**:
+
+- **Kilometres / Miles:** changes pace and distance displays while preserving
+  the physical target and run totals. The target range is 4:00–12:00/km,
+  approximately 6:26–19:19/mile.
+- **Spoken coaching:** enables or silences audio cues.
+- **Voice:** selects an installed English iOS voice; **Preview voice** auditions
+  it. Voices come from the phone, not from bundled recordings. If a saved voice
+  becomes unavailable, coaching falls back to the default US English voice.
+- **Change app:** submits a suggestion directly from the app.
+
+Units, coaching preference, and voice selection are remembered between launches.
+The app requests music ducking while it speaks and releases the audio session
+after each cue. Its icon and installed name are **Speed Up or Slow Down**.
+
+## Build locally
+
+1. On a Mac with Xcode, open `Pacer.xcodeproj` and select the **Pacer** scheme.
+   The project and internal Swift package retain their original names.
+2. Choose an iOS 17+ simulator to try the UI, or connect an iPhone and select
+   your development team under **Signing & Capabilities**. A free Personal Team
+   supports local device testing, subject to Apple's provisioning limits.
+3. Build and run. A simulator cannot validate real jogging pace or background audio.
+
+CI uses **Xcode 26.2**. Signed TestFlight distribution uses the paid team and
+bundle identifier configured in CI, overriding local development signing.
+Local and unsigned builds have change submission disabled unless the dedicated
+issue-only credential is configured; jogging and voice previews work without it.
+See [TESTFLIGHT.md](TESTFLIGHT.md) for manual distribution and
+[TESTFLIGHT-CI.md](TESTFLIGHT-CI.md) for automatic uploads.
 
 ## How it measures pace
 
 Core Location supplies GPS speed and accuracy estimates from the iPhone's
-built-in positioning hardware. Pacer averages speed over a rolling 15-second
+built-in positioning hardware. The app averages speed over a rolling 15-second
 window, then converts it to minutes/km or minutes/mile. It rejects old fixes, poor accuracy,
 negative speed, and speeds above 8 m/s. It waits for 10 seconds of samples before
 coaching and never speaks more often than once every 30 seconds. Below 0.5 m/s it shows no
@@ -84,7 +101,7 @@ and audio modes are declared to support a run with the screen locked.
 - **Audio in every situation:** calls, Siri, audio route changes, muted media
   volume, and other apps can interrupt or suppress speech. Mixing/ducking and
   locked-screen playback need testing with your actual headphones and music app.
-  Pacer cannot control another app's volume or guarantee it resumes.
+  The app cannot control another app's volume or guarantee it resumes.
 - **Perfect distance or race-grade accuracy:** GPS noise and filtered gaps affect
   pace and distance. Continuous GPS also uses battery. This is not a safety or
   medical device.
@@ -94,9 +111,54 @@ and audio modes are declared to support a run with the screen locked.
 
 ## Suggest a change
 
-Open **Settings → Change app**, describe the desired behavior, optionally add your name, and tap **Send request**. No tester account or GitHub login is required. The app creates a public GitHub issue and shows a receipt link; drafts survive failed submissions. Leave credentials and private details out of requests.
+Open **Settings → Change app**, describe the desired behavior, optionally add your
+name, and tap **Send request**. No tester account or GitHub login is required.
+The app creates a **public GitHub issue**, saves drafts after failed submissions,
+and shows a receipt link when delivery is confirmed. Retry handling checks recent
+requests before reposting. Leave credentials and private details out of requests.
 
-A maintainer applies `ready-for-agent` to approve agent work. Codex proposes a PR, independent checks must pass, and owner review is required before merging. See [APP-CHANGE-AGENT.md](APP-CHANGE-AGENT.md) for setup and scope.
+The improvement loop is:
+
+1. A tester submits a request from the app.
+2. A maintainer applies **`ready-for-agent`** to approve agent work.
+3. Codex evaluates the request and implements an accepted change on a branch,
+   or asks for clarification or explains why it cannot proceed.
+4. A separate job checks the proposal and runs Swift tests and unsigned iOS builds.
+5. The workflow opens a PR for owner review. It never merges automatically.
+6. Merging an app change into `main` starts private TestFlight delivery.
+
+The agent initially works only on existing app Swift files, core code, tests, and
+README. Signing, dependencies, privacy declarations, project files, and automation
+remain outside its permitted edit scope. See [APP-CHANGE-AGENT.md](APP-CHANGE-AGENT.md)
+for credentials, limits, and recovery.
+
+Anonymous submission uses a **dedicated repository-scoped PAT with Issues
+read/write only**, injected into the signed app by CI. It can be extracted from
+the app; this is an explicitly accepted tradeoff for the small friends/TestFlight
+group. The public source contains no token. Neither the OpenAI API key nor the
+code-writing agent token is shipped in the app.
+
+## Automatic private delivery
+
+GitHub Actions validates **main pushes, PR updates, and manual runs**. Branch
+pushes do not duplicate PR checks. The release job signs, exports, and uploads
+only when needed:
+
+- App code, assets, project settings, or package inputs change on `main`.
+- Documentation, test-only, and automation changes skip TestFlight uploads.
+- Superseded CI runs are cancelled; stale main commits and already-uploaded
+  commits are skipped before archiving.
+- Manual runs validate only by default. Select **Force a TestFlight upload after
+  validation** to upload a replacement build or pick up rotated credentials.
+
+Uploads are serialized and receive unique build numbers. Apple must process each
+upload before it is available. An internal group with automatic distribution and
+TestFlight's **Automatic Updates** setting completes delivery to testers. The
+pipeline does not publish an App Store release. TestFlight builds expire after
+90 days.
+
+The agent and feedback smoke-test workflows never sign or export apps.
+See [TESTFLIGHT-CI.md](TESTFLIGHT-CI.md) for setup and the complete trigger policy.
 
 ## Development checks
 
@@ -126,13 +188,17 @@ not an empty `xcodebuild test` run. GitHub Actions runs core tests and the iOS
 simulator build on macOS once these files are pushed. A simulator build cannot
 prove real GPS accuracy or background audio behavior.
 
-The **iOS build and pace tests** workflow also supports **Run workflow** in the
-repository's Actions tab. It uses GitHub's standard `macos-15` hosted runner,
-read-only repository permissions, and a 15-minute timeout. No Apple signing
-secrets or paid Apple developer account are needed for this simulator build.
-GitHub Actions must be enabled for the repository and allow `actions/checkout`.
-Private repositories use the account's included Actions allowance or paid usage;
-check Actions billing and budgets if GitHub refuses to start a job.
+CI also runs the Python pipeline checks:
+
+```sh
+python3 -m unittest discover -s scripts/tests -v
+```
+
+The **iOS build and pace tests** workflow uses GitHub's `macos-15` hosted runner
+with Xcode 26.2 for Swift tests, simulator builds, and unsigned device Release
+builds. Unsigned validation needs no Apple signing credentials. The separate
+release job uses the private `testflight` environment after validation passes.
+GitHub Actions and OpenAI API usage are subject to the owner's billing limits.
 
 Before relying on coaching, verify on a real iPhone: changing the target during a
 run, switching units without changing the target speed or resetting distance,
