@@ -10,6 +10,11 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     @Published private(set) var elapsedText = "0:00"
     @Published private(set) var distanceMetres = 0.0
     @Published private(set) var status = ""
+    @Published private(set) var warmUpRemainingText = ""
+    @Published private(set) var warmUpReport = ""
+    @Published var warmUpMinutes = min(30, max(0, UserDefaults.standard.integer(forKey: "warmUpMinutes"))) {
+        didSet { UserDefaults.standard.set(warmUpMinutes, forKey: "warmUpMinutes") }
+    }
     @Published var targetPaceSecondsPerKilometre = 360.0 {
         didSet {
             // Cancel a nudge for the old target. The next GPS fix uses the new target
@@ -47,6 +52,9 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     private let haptics = UINotificationFeedbackGenerator()
     private var engine = PaceEngine()
     private var phrases = CoachingPhrases()
+    private var warmUpEndsAt: Date?
+    private var warmUpReportPending = false
+    private var warmUpSpeechPending = false
     private var startedAt: Date?
     private var lastFix: Date?
     private var timer: Timer?
@@ -77,14 +85,20 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
                 return
             }
             pendingStart = false
-            engine = PaceEngine()
+            let start = Date()
+            warmUpEndsAt = warmUpMinutes > 0 ? start.addingTimeInterval(Double(warmUpMinutes * 60)) : nil
+            warmUpReportPending = warmUpEndsAt != nil
+            warmUpSpeechPending = warmUpEndsAt != nil
+            warmUpReport = ""
+            engine = PaceEngine(warmUpEndsAt: warmUpEndsAt?.timeIntervalSinceReferenceDate)
             lastFix = nil
-            startedAt = Date()
+            startedAt = start
             distanceMetres = 0
             paceSecondsPerKilometre = nil
             elapsedText = "0:00"
             isRunning = true
             status = "Acquiring GPS…"
+            tick()
             location.startUpdatingLocation()
             timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
                 self?.tick()
@@ -101,6 +115,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         timer?.invalidate()
         timer = nil
         isRunning = false
+        warmUpRemainingText = ""
         speech.stopSpeaking(at: .immediate)
         releaseAudio()
         status = "Run ended."
@@ -110,6 +125,12 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         guard isRunning, let start = startedAt else { return }
         let seconds = max(0, Int(Date().timeIntervalSince(start)))
         elapsedText = String(format: "%d:%02d", seconds / 60, seconds % 60)
+        if let end = warmUpEndsAt {
+            let remaining = max(0, Int(ceil(end.timeIntervalSinceNow)))
+            warmUpRemainingText = remaining > 0
+                ? String(format: "Warm-up: %d:%02d remaining", remaining / 60, remaining % 60)
+                : (warmUpReportPending ? "Warm-up complete. Waiting for a reliable pace estimate." : "")
+        } else { warmUpRemainingText = "" }
         if Date().timeIntervalSince(lastFix ?? start) > 8 {
             engine.loseSignal()
             paceSecondsPerKilometre = nil
@@ -149,6 +170,15 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         } else {
             status = "Tracking your outdoor pace."
         }
+        let warmUpComplete = warmUpEndsAt.map { fix.timestamp >= $0 } ?? false
+        let unit = DistanceUnit(rawValue: UserDefaults.standard.string(forKey: "distanceUnit") ?? "") ?? .kilometres
+        let report = "Warm-up complete. " + unit.paceDifferenceText(
+            pace: engine.paceSecondsPerKilometre, target: targetPaceSecondsPerKilometre)
+        if warmUpReportPending && warmUpComplete && engine.speedMetresPerSecond != nil {
+            warmUpReport = report
+            warmUpReportPending = false
+            warmUpRemainingText = ""
+        }
         if let cue {
             if hapticsAvailable {
                 switch cue {
@@ -157,7 +187,12 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
                 case .slowDown, .slowDownMore: haptics.notificationOccurred(.error)
                 }
             }
-            if coachingEnabled { speak(phrases.next(for: cue)) }
+            if coachingEnabled && !speech.isSpeaking {
+                if warmUpSpeechPending && warmUpComplete {
+                    speak(report)
+                    warmUpSpeechPending = false
+                } else { speak(phrases.next(for: cue)) }
+            }
         }
     }
 

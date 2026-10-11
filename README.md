@@ -23,6 +23,13 @@ Open the gear button for **Settings**:
 - **Kilometres / Miles:** changes pace and distance displays while preserving
   the physical target and run totals. The target range is 4:00–12:00/km,
   approximately 6:26–19:19/mile.
+- **Warm-up:** choose 0–30 whole minutes before starting a run (0/off by default).
+  Pace and distance still track, but spoken and haptic pace cues wait. At the end,
+  the first reliable estimate shows your difference from target in seconds per
+  selected unit; spoken coaching reads it when enabled and speech is idle.
+  Stationary runners get a prompt to start jogging instead of a numeric difference.
+  GPS outages delay the report until the estimate settles again. The report stays
+  on screen until the next run; normal coaching resumes after warm-up.
 - **Spoken coaching:** enables or silences audio cues.
 - **Haptic coaching:** optional vibration cues, off by default, independent of
   speech. While the app is active, success feedback means on target, warning
@@ -34,7 +41,7 @@ Open the gear button for **Settings**:
   becomes unavailable, coaching falls back to the default US English voice.
 - **Change app:** submits a suggestion directly from the app.
 
-Appearance, units, spoken and haptic coaching preferences, and voice selection are remembered between launches.
+Appearance, units, warm-up duration, spoken and haptic coaching preferences, and voice selection are remembered between launches.
 The app requests music ducking while it speaks and releases the audio session
 after each cue. Its icon and installed name are **Speed Up or Slow Down**.
 
@@ -78,7 +85,7 @@ its list is exhausted and no immediate repeat across shuffle cycles.
 These are delays between eligible cues, not fixed alarms: GPS still needs to be
 usable and either spoken coaching available with speech idle or haptic coaching
 enabled while the app is active. Both outputs share the same cooldown. The first cue can play after the
-10-second GPS settling window. Worsening pace shortens the next wait to 30 seconds;
+10-second GPS settling window, or after the configured warm-up ends, whichever is later. Worsening pace shortens the next wait to 30 seconds;
 getting back on target slows the chatter down again. Unit changes preserve the
 same physical bands. Disabling both coaching outputs does not consume the cue cooldown.
 

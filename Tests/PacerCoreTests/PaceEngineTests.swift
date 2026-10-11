@@ -9,6 +9,45 @@ final class PaceEngineTests: XCTestCase {
         }
     }
 
+    func testConfiguredWarmUpTracksWithoutConsumingCooldown() {
+        var engine = PaceEngine(warmUpEndsAt: 60)
+        XCTAssertTrue(feed(&engine, speed: 2, through: 59).isEmpty)
+        XCTAssertEqual(engine.distanceMetres, 118, accuracy: 0.001)
+        XCTAssertEqual(engine.paceSecondsPerKilometre!, 500, accuracy: 0.001)
+        XCTAssertEqual(engine.ingest(speed: 2, at: 60, targetPace: 360), .speedUpMore)
+        XCTAssertTrue(feed(&engine, speed: 2, from: 61, through: 89).isEmpty)
+        XCTAssertEqual(engine.ingest(speed: 2, at: 90, targetPace: 360), .speedUpMore)
+    }
+
+    func testWarmUpCompletionWaitsForSignalAndAvailableCoaching() {
+        var engine = PaceEngine(warmUpEndsAt: 60)
+        XCTAssertTrue(feed(&engine, speed: 3, through: 10).isEmpty)
+        engine.loseSignal()
+        XCTAssertTrue(feed(&engine, speed: 3, from: 60, through: 69).isEmpty)
+        XCTAssertNil(engine.ingest(speed: 3, at: 70, targetPace: 360, coachingAvailable: false))
+        XCTAssertEqual(engine.ingest(speed: 3, at: 71, targetPace: 360), .slowDown)
+    }
+
+    func testWarmUpStillRequiresGPSSettlingAndResetsForNewRun() {
+        var engine = PaceEngine(warmUpEndsAt: 5)
+        XCTAssertTrue(feed(&engine, speed: 0, through: 9).isEmpty)
+        XCTAssertEqual(engine.ingest(speed: 0, at: 10, targetPace: 360), .speedUpMore)
+        engine = PaceEngine(warmUpEndsAt: 60)
+        XCTAssertTrue(feed(&engine, speed: 0, through: 59).isEmpty)
+        XCTAssertEqual(engine.ingest(speed: 0, at: 60, targetPace: 360), .speedUpMore)
+    }
+
+    func testWarmUpReportUsesSelectedUnitAndDirection() {
+        XCTAssertEqual(DistanceUnit.kilometres.paceDifferenceText(pace: 400, target: 360),
+                       "You are 40 seconds per kilometre slower than your target.")
+        XCTAssertEqual(DistanceUnit.miles.paceDifferenceText(pace: 320, target: 360),
+                       "You are 64 seconds per mile faster than your target.")
+        XCTAssertEqual(DistanceUnit.miles.paceDifferenceText(pace: 360, target: 360),
+                       "You are at your target pace.")
+        XCTAssertEqual(DistanceUnit.kilometres.paceDifferenceText(pace: nil, target: 360),
+                       "No moving pace available. Start jogging to measure your pace.")
+    }
+
     func testOnTargetPaceAndDistance() {
         var engine = PaceEngine()
         XCTAssertEqual(feed(&engine, speed: 1000 / 360), [.onTarget])

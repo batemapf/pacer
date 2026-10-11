@@ -29,7 +29,11 @@ public struct PaceEngine {
     public private(set) var distanceMetres = 0.0
     public private(set) var speedMetresPerSecond: Double?
 
-    public init() {}
+    private let warmUpEndsAt: TimeInterval?
+
+    public init(warmUpEndsAt: TimeInterval? = nil) {
+        self.warmUpEndsAt = warmUpEndsAt
+    }
 
     public var paceSecondsPerKilometre: Double? {
         guard let speed = speedMetresPerSecond, speed >= 0.5 else { return nil }
@@ -68,7 +72,7 @@ public struct PaceEngine {
         }
         let mean = distance / (time - first.time)
         speedMetresPerSecond = mean
-        guard coachingAvailable else { return nil }
+        guard warmUpEndsAt.map({ time >= $0 }) ?? true, coachingAvailable else { return nil }
         let cue = Cue.classify(pace: paceSecondsPerKilometre, target: targetPace)
         // A worsening pace can shorten the wait, but no transition bypasses 30 seconds.
         guard lastCueTime.map({ time - $0 >= cue.interval }) ?? true else { return nil }
