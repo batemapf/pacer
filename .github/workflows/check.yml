@@ -5,6 +5,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
 jobs:
   check:
     runs-on: macos-15
@@ -46,5 +48,7 @@ jobs:
       ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
     steps:
       - uses: actions/checkout@v4
+      - name: Show upload Apple toolchain
+        run: xcodebuild -version
       - name: Sign, archive, and upload to App Store Connect
         run: bash scripts/publish-testflight.sh
