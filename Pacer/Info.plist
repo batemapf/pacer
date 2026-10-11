@@ -12,6 +12,7 @@
     <key>CFBundleShortVersionString</key><string>1.0</string>
     <key>CFBundleVersion</key><string>1</string>
     <key>LSRequiresIPhoneOS</key><true/>
+    <key>ITSAppUsesNonExemptEncryption</key><false/>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Speed Up or Slow Down uses precise location during your run to measure jogging pace and give spoken coaching, including while the screen is locked.</string>
     <key>UIBackgroundModes</key><array><string>location</string><string>audio</string></array>
