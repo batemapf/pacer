@@ -1,8 +1,8 @@
-# Pacer
+# Speed Up or Slow Down
 
 A tiny native iPhone app for outdoor jogging. Set a target pace (minutes/km or minutes/mile),
 start a run, and hear playful praise or progressively stronger pace corrections.
-No account, server, API key, or external sensor.
+Running needs no account, server, API key, or external sensor. Optional change requests connect directly to GitHub.
 
 ## Run on an iPhone
 
@@ -20,7 +20,7 @@ No account, server, API key, or external sensor.
    Changes apply to the next usable GPS reading without restarting the run; the
    30-second coaching cooldown still applies.
 
-Use the **Kilometres / Miles** toggle to change both pace and distance displays,
+Use **Settings → Kilometres / Miles** to change both pace and distance displays,
 including during a run. Switching units preserves the physical target pace and
 all run totals. Your unit preference is remembered. The target range covers the
 same speeds: 4:00–12:00/km, approximately 6:26–19:19/mile.
@@ -97,3 +97,48 @@ and audio modes are declared to support a run with the screen locked.
 Open **Settings → Change app**, describe the desired behavior, optionally add your name, and tap **Send request**. No tester account or GitHub login is required. The app creates a public GitHub issue and shows a receipt link; drafts survive failed submissions. Leave credentials and private details out of requests.
 
 A maintainer applies `ready-for-agent` to approve agent work. Codex proposes a PR, independent checks must pass, and owner review is required before merging. See [APP-CHANGE-AGENT.md](APP-CHANGE-AGENT.md) for setup and scope.
+
+## Development checks
+
+The same `Sources/PacerCore/PaceEngine.swift` is compiled into the iOS app and
+the standalone Swift package. With Swift 5.9 or later:
+
+```sh
+swift test
+```
+
+Without a local Swift installation, use the official Swift Docker image:
+
+```sh
+docker run --rm -v "$PWD:/app" -w /app swift:6.0.3 swift test --jobs 2
+```
+
+On a Mac, also compile the actual app without device signing:
+
+```sh
+xcodebuild -project Pacer.xcodeproj -scheme Pacer -configuration Debug \
+  -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build
+```
+
+The shared app scheme has no XCTest target: use **`swift test`** for core tests,
+not an empty `xcodebuild test` run. GitHub Actions runs core tests and the iOS
+simulator build on macOS once these files are pushed. A simulator build cannot
+prove real GPS accuracy or background audio behavior.
+
+The **iOS build and pace tests** workflow also supports **Run workflow** in the
+repository's Actions tab. It uses GitHub's standard `macos-15` hosted runner,
+read-only repository permissions, and a 15-minute timeout. No Apple signing
+secrets or paid Apple developer account are needed for this simulator build.
+GitHub Actions must be enabled for the repository and allow `actions/checkout`.
+Private repositories use the account's included Actions allowance or paid usage;
+check Actions billing and budgets if GitHub refuses to start a job.
+
+Before relying on coaching, verify on a real iPhone: changing the target during a
+run, switching units without changing the target speed or resetting distance,
+location denial and Precise
+Location off, settling outdoors, both cue directions, the cooldown, loss and
+recovery of GPS, music/headphone ducking, several minutes with the screen locked,
+stopping (no subsequent cues/location indicator), and force-quit behavior.
+
+No location data leaves the app. There is no analytics, backend, or microphone access. Running needs no credentials; optional change requests use the issue-only credential injected into TestFlight builds.
