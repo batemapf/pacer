@@ -2,6 +2,8 @@ name: Propose app change with Codex
 on:
   issues:
     types: [labeled]
+  issue_comment:
+    types: [created]
   workflow_dispatch:
     inputs:
       issue_number:
@@ -15,7 +17,16 @@ concurrency:
   cancel-in-progress: false
 jobs:
   propose:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || github.event.label.name == 'ready-for-agent')
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'issues' && github.event.label.name == 'ready-for-agent') ||
+       (github.event_name == 'issue_comment' && !github.event.issue.pull_request &&
+        github.event.issue.state == 'open' &&
+        contains(github.event.issue.labels.*.name, 'ready-for-agent') &&
+        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
+        !startsWith(github.event.comment.body, '**Codex:') &&
+        !startsWith(github.event.comment.body, 'Codex proposed this change:')))
     runs-on: macos-15
     timeout-minutes: 20
     env:

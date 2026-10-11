@@ -126,7 +126,10 @@ requests before reposting. Leave credentials and private details out of requests
 The improvement loop is:
 
 1. A tester submits a request from the app.
-2. A maintainer applies **`ready-for-agent`** to approve agent work.
+2. A maintainer applies **`ready-for-agent`** to approve agent work. Maintainer
+   replies on an approved open issue restart the agent with the full discussion,
+   including answers to clarification questions. Agent comments do not restart it,
+   and an existing agent PR prevents duplicate proposals.
 3. Codex evaluates the request and implements an accepted change on a branch,
    or asks for clarification or explains why it cannot proceed.
 4. A separate job checks the proposal and runs Swift tests and unsigned iOS builds.

@@ -54,6 +54,35 @@ class AgentBoundaryTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, 'must not change'):
                     agent.validate()
 
+    def test_prepare_includes_discussion_in_prompt(self):
+        with tempfile.TemporaryDirectory() as d:
+            event = Path(d) / 'event.json'
+            event.write_text(json.dumps({'issue': {'number': 13}}))
+            issue = {'state': 'open', 'title': 'Make it colorful', 'body': 'Request',
+                     'labels': [{'name': 'ready-for-agent'}]}
+            comments = [{'author': 'owner', 'body': 'Use your best judgment man!'}]
+            with patch.dict(os.environ, GITHUB_EVENT_PATH=str(event), RUNNER_TEMP=d,
+                            GITHUB_REPOSITORY='owner/repo', GITHUB_ACTOR='owner'), \
+                    patch.object(agent, 'api', side_effect=[{'permission': 'admin'}, issue, []]), \
+                    patch.object(agent, 'issue_comments', return_value=comments), \
+                    patch.object(agent, 'command', return_value='a' * 40), \
+                    patch.object(agent, 'output'):
+                agent.prepare()
+            request = json.loads((Path(d) / 'agent-request.json').read_text())
+            self.assertEqual(request['comments'], comments)
+            self.assertIn('Use your best judgment man!', (Path(d) / 'agent-prompt.txt').read_text())
+
+    def test_comments_are_paginated_and_preserve_order(self):
+        def comment(body):
+            return {'user': {'login': 'owner'}, 'author_association': 'OWNER',
+                    'created_at': '2026-10-11T19:00:00Z', 'body': body}
+        with patch.object(agent, 'command', return_value=json.dumps([
+                [comment('Question')], [comment('Answer')]])) as command:
+            comments = agent.issue_comments('owner/repo', 13)
+        self.assertEqual([c['body'] for c in comments], ['Question', 'Answer'])
+        self.assertIn('--paginate', command.call_args.args)
+        self.assertIn('--slurp', command.call_args.args)
+
     def test_patch_to_protected_file_is_rejected(self):
         self.apply_patch_fixture('Pacer/Info.plist', rejected=True)
 

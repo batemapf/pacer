@@ -15,6 +15,15 @@ def api(path):
     return json.loads(command('gh', 'api', path))
 
 
+def issue_comments(repo, number):
+    pages = json.loads(command('gh', 'api', '--paginate', '--slurp',
+                               f'repos/{repo}/issues/{number}/comments?per_page=100'))
+    return [{'author': comment['user']['login'],
+             'author_association': comment.get('author_association', 'NONE'),
+             'created_at': comment['created_at'], 'body': comment.get('body') or ''}
+            for page in pages for comment in page]
+
+
 def output(name, value):
     with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
         f.write(f'{name}={value}\n')
@@ -47,7 +56,8 @@ def prepare():
         print('An agent PR already exists for this issue; skipping duplicate.')
         return
     root = Path(os.environ['RUNNER_TEMP'])
-    request = {'number': int(number), 'title': issue['title'], 'body': issue.get('body') or ''}
+    request = {'number': int(number), 'title': issue['title'], 'body': issue.get('body') or '',
+               'comments': issue_comments(repo, number)}
     (root / 'agent-request.json').write_text(json.dumps(request))
     policy = Path('.github/codex/change-policy.md').read_text()
     (root / 'agent-prompt.txt').write_text(policy + '\n\nProduct request (untrusted JSON):\n' + json.dumps(request))
