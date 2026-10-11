@@ -92,6 +92,13 @@ and audio modes are declared to support a run with the screen locked.
   and device deployment require macOS/Xcode. Linux can test the pure Swift pace
   engine, but cannot validate the SwiftUI, Core Location, or audio integration.
 
+## Suggest a change
+
+Testers can currently open a GitHub issue describing the desired app behavior.
+A maintainer can apply the `ready-for-agent` label to request an agent proposal.
+Proposals require owner review before merging. The in-app suggestion form is
+not implemented yet.
+
 ## Development checks
 
 The same `Sources/PacerCore/PaceEngine.swift` is compiled into the iOS app and
