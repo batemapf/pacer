@@ -15,7 +15,7 @@ jobs:
           APP_CHANGE_GH_TOKEN: ${{ secrets.APP_CHANGE_GH_TOKEN }}
         run: |
           python3 - <<'PY'
-          import json, os, urllib.request, uuid
+          import json, os, time, urllib.request, uuid
           token = os.environ.get('APP_CHANGE_GH_TOKEN', '')
           if not token:
               raise SystemExit('APP_CHANGE_GH_TOKEN is missing.')
@@ -27,7 +27,7 @@ jobs:
               request = urllib.request.Request(url, data=payload, method=method, headers={
                   'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json',
                   'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28',
-                  'User-Agent': 'Speed-Up-or-Slow-Down'})
+                  'User-Agent': 'Speed-Up-or-Slow-Down', 'Cache-Control': 'no-cache'})
               with urllib.request.urlopen(request, timeout=20) as response:
                   return json.load(response)
           marker = '<!-- app-change-request:' + str(uuid.uuid4()) + ' -->'
@@ -40,8 +40,13 @@ jobs:
           try:
               assert issue['html_url'] == url
               assert 'ready-for-agent' not in [label['name'] for label in issue['labels']]
-              recent = api(root + '?labels=app-change&state=all&sort=created&direction=desc&per_page=100')
-              assert any(item['number'] == number and marker in (item.get('body') or '') for item in recent)
+              for attempt in range(4):
+                  recent = api(root + '?state=all&sort=created&direction=desc&per_page=100')
+                  if any(item['number'] == number and marker in (item.get('body') or '') for item in recent):
+                      break
+                  time.sleep(2)
+              else:
+                  raise AssertionError('Receipt lookup did not find the new issue after settling.')
               print('Native-style POST and retry receipt lookup passed: ' + url)
           finally:
               api(root + '/' + str(number), 'PATCH', {'state': 'closed', 'state_reason': 'not_planned'})

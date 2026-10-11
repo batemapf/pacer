@@ -160,7 +160,7 @@ private struct AppChangeView: View {
     }
 
     private func githubRequest(_ url: URL) -> URLRequest {
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
         request.timeoutInterval = 20
         request.setValue("Bearer " + githubToken, forHTTPHeaderField: "Authorization")
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
@@ -191,13 +191,16 @@ private struct AppChangeView: View {
         do {
             // Check recent requests after an uncertain response before posting again.
             if retrying {
-                let lookup = githubRequest(URL(string: "https://api.github.com/repos/batemapf/pacer/issues?labels=app-change&state=all&sort=created&direction=desc&per_page=100")!)
-                let (data, response) = try await URLSession.shared.data(for: lookup)
-                guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
-                let recent = try JSONDecoder().decode([ChangeReceipt].self, from: data)
-                if let existing = recent.first(where: { $0.body?.contains(marker) == true }) {
-                    try showReceipt(existing)
-                    return
+                let lookup = githubRequest(URL(string: "https://api.github.com/repos/batemapf/pacer/issues?state=all&sort=created&direction=desc&per_page=100")!)
+                for attempt in 0..<3 {
+                    let (data, response) = try await URLSession.shared.data(for: lookup)
+                    guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+                    let recent = try JSONDecoder().decode([ChangeReceipt].self, from: data)
+                    if let existing = recent.first(where: { $0.body?.contains(marker) == true }) {
+                        try showReceipt(existing)
+                        return
+                    }
+                    if attempt < 2 { try await Task.sleep(for: .seconds(2)) }
                 }
             }
             var submission = githubRequest(URL(string: "https://api.github.com/repos/batemapf/pacer/issues")!)
