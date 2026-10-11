@@ -2,7 +2,7 @@
 
 Repository: https://github.com/batemapf/pacer
 
-The workflow is implemented in `.github/workflows/check.yml`. On a push to `main`, it runs the tests, simulator build, and unsigned device Release build. If those pass and the repository variable `TESTFLIGHT_ENABLED` is exactly `true`, it signs an archive and uploads it to App Store Connect. It can also be run manually using **Actions → iOS build and pace tests → Run workflow** on `main`.
+The workflow is implemented in `.github/workflows/check.yml`. On a push to `main`, it runs the tests, simulator build, and unsigned device Release build. If those pass, the repository variable `TESTFLIGHT_ENABLED` is exactly `true`, and the push changes app code, assets, project settings, or release tooling, it signs an archive and uploads it to App Store Connect. Documentation, test-only, and agent-automation changes still run validation but skip TestFlight. The change check compares the complete push range, including merges and deletions. Manual workflow runs explicitly request an upload regardless of changed files. It can also be run manually using **Actions → iOS build and pace tests → Run workflow** on `main`.
 
 **Current status:** uploads are disabled by default. The GitHub integration cannot create environments, variables, or secrets (HTTP 403). The following configuration must be created by a repository admin. There are no Apple signing secrets stored by this setup.
 

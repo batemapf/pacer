@@ -8,6 +8,20 @@ permissions:
 env:
   DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
 jobs:
+  release_changes:
+    name: Check whether TestFlight upload is needed
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    outputs:
+      needed: ${{ steps.changes.outputs.needed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Detect app and release changes
+        id: changes
+        run: python3 scripts/testflight-changes.py
   check:
     runs-on: macos-15
     timeout-minutes: 15
@@ -29,8 +43,8 @@ jobs:
         run: xcodebuild -project Pacer.xcodeproj -scheme Pacer -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build
   testflight:
     name: Upload private TestFlight build
-    needs: check
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.TESTFLIGHT_ENABLED == 'true'
+    needs: [check, release_changes]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.TESTFLIGHT_ENABLED == 'true' && needs.release_changes.outputs.needed == 'true'
     runs-on: macos-15
     timeout-minutes: 30
     environment: testflight
