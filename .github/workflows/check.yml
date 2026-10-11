@@ -1,10 +1,19 @@
 name: iOS build and pace tests
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      upload_testflight:
+        description: Force a TestFlight upload after validation
+        type: boolean
+        default: false
 permissions:
   contents: read
+concurrency:
+  group: ios-ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
 env:
   DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
 jobs:
@@ -47,6 +56,9 @@ jobs:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.TESTFLIGHT_ENABLED == 'true' && needs.release_changes.outputs.needed == 'true'
     runs-on: macos-15
     timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
     environment: testflight
     concurrency:
       group: pacer-testflight
@@ -63,7 +75,14 @@ jobs:
       APP_CHANGE_GH_TOKEN: ${{ secrets.APP_CHANGE_GH_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+      - name: Confirm this is still the latest main commit
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/testflight-upload-gate.py
       - name: Show upload Apple toolchain
+        if: steps.latest.outputs.current == 'true'
         run: xcodebuild -version
       - name: Sign, archive, and upload to App Store Connect
+        if: steps.latest.outputs.current == 'true'
         run: bash scripts/publish-testflight.sh

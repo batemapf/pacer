@@ -19,17 +19,27 @@ class ReleaseChangeTests(unittest.TestCase):
         with patch.object(changes.subprocess, 'check_output', return_value=b'README.md\0Pacer/ContentView.swift\0'):
             self.assertTrue(changes.release_needed('push', self.event))
 
-    def test_assets_project_and_release_pipeline_upload(self):
+    def test_assets_project_and_app_inputs_upload(self):
         for path in ['Pacer/Assets.xcassets/AppIcon.appiconset/AppIcon.png',
                      'Pacer.xcodeproj/project.pbxproj', 'Sources/PacerCore/PaceEngine.swift',
-                     'Package.swift', 'scripts/upload-testflight.py', '.github/workflows/check.yml']:
+                     'Package.swift']:
             self.assertTrue(changes.affects_release(path), path)
 
     def test_test_only_changes_do_not_upload(self):
         self.assertFalse(changes.affects_release('Tests/PacerCoreTests/PaceEngineTests.swift'))
 
-    def test_manual_upload_remains_available(self):
-        self.assertTrue(changes.release_needed('workflow_dispatch', {}))
+    def test_release_automation_alone_does_not_upload(self):
+        for path in ['scripts/upload-testflight.py', 'scripts/publish-testflight.sh',
+                     'scripts/testflight-changes.py', '.github/workflows/check.yml']:
+            self.assertFalse(changes.affects_release(path), path)
+
+    def test_manual_validation_does_not_upload_by_default(self):
+        self.assertFalse(changes.release_needed('workflow_dispatch', {}))
+        self.assertFalse(changes.release_needed('workflow_dispatch', {'inputs': {'upload_testflight': 'false'}}))
+
+    def test_explicit_manual_upload_remains_available(self):
+        self.assertTrue(changes.release_needed('workflow_dispatch', {'inputs': {'upload_testflight': 'true'}}))
+        self.assertTrue(changes.release_needed('workflow_dispatch', {'inputs': {'upload_testflight': True}}))
 
     def test_first_push_uploads_conservatively(self):
         self.assertTrue(changes.release_needed('push', {'before': '0' * 40, 'after': 'b' * 40}))

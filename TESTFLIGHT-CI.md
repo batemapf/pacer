@@ -2,7 +2,7 @@
 
 Repository: https://github.com/batemapf/pacer
 
-The workflow is implemented in `.github/workflows/check.yml`. On a push to `main`, it runs the tests, simulator build, and unsigned device Release build. If those pass, the repository variable `TESTFLIGHT_ENABLED` is exactly `true`, and the push changes app code, assets, project settings, or release tooling, it signs an archive and uploads it to App Store Connect. Documentation, test-only, and agent-automation changes still run validation but skip TestFlight. The change check compares the complete push range, including merges and deletions. Manual workflow runs explicitly request an upload regardless of changed files. It can also be run manually using **Actions → iOS build and pace tests → Run workflow** on `main`.
+The workflow is implemented in `.github/workflows/check.yml`. On a push to `main`, it runs the tests, simulator build, and unsigned device Release build. If those pass, the repository variable `TESTFLIGHT_ENABLED` is exactly `true`, and the push changes app code, assets, or project settings, it signs an archive and uploads it to App Store Connect. Documentation, test-only, and automation changes still run validation but skip TestFlight. The change check compares the complete push range, including merges and deletions. Manual workflow runs validate only by default; select **Force a TestFlight upload after validation** to request an upload regardless of changed files. The latest-main check skips superseded commits, and automatic retries skip a commit already uploaded successfully. An explicit manual upload can replace a previous build. It can also be run manually using **Actions → iOS build and pace tests → Run workflow** on `main`.
 
 **Current status:** uploads are disabled by default. The GitHub integration cannot create environments, variables, or secrets (HTTP 403). The following configuration must be created by a repository admin. There are no Apple signing secrets stored by this setup.
 
@@ -82,7 +82,7 @@ ASC_API_KEY_P8_BASE64
 
 Replace all `SET_ME` variables with the real non-secret identifiers. Confirm the four secrets are present. Set the **repository** variable `TESTFLIGHT_ENABLED` to **`true`**.
 
-Run the workflow manually on `main`. Check that the tests and both unsigned builds pass, then that **Upload private TestFlight build** succeeds. The script installs signing assets in a temporary keychain, manually signs with the paid team, exports an IPA, uploads using `altool`, and removes its temporary credentials on exit. No signed app or signing assets are published as GitHub artifacts.
+Run the workflow manually on `main`, selecting **Force a TestFlight upload after validation**. Check that the tests and both unsigned builds pass, then that **Upload private TestFlight build** succeeds. The script installs signing assets in a temporary keychain, manually signs with the paid team, exports an IPA, uploads using `altool`, and removes its temporary credentials on exit. No signed app or signing assets are published as GitHub artifacts.
 
 Build numbers are generated as **`GITHUB_RUN_NUMBER.GITHUB_RUN_ATTEMPT`**, replacing the literal `1` only inside the CI checkout. Each run/retry gets a distinct build number. If the app already has larger build numbers, adjust the numbering scheme before enabling CI. The app version remains `1.0`.
 
@@ -97,9 +97,9 @@ External tester groups may require beta review and additional metadata. This wor
 ## 8. Maintenance and Codex computer-use handoff
 
 - Renew expired certificates/profiles and update the corresponding secrets. Do not revoke unrelated signing assets.
-- Each TestFlight build expires after 90 days. A new main commit or manual run uploads a replacement.
+- Each TestFlight build expires after 90 days. A main commit changing app inputs, or a manual run with the upload checkbox selected, uploads a replacement.
 - Disable uploads at any time by setting `TESTFLIGHT_ENABLED=false`.
-- Upload jobs are serialized. GitHub concurrency may replace older pending uploads with newer ones; every push runs validation, but not every queued commit is guaranteed a separate TestFlight upload.
+- Upload jobs are serialized. GitHub concurrency may replace older pending uploads with newer ones; main pushes and PR updates run validation, but not every queued commit is guaranteed a separate TestFlight upload. Branch pushes do not duplicate PR validation. Superseded CI runs are cancelled.
 - For a Codex computer-use session: the owner logs into Apple locally, authorizes the setup, then follows these steps. Never put passwords, `.p12`/`.p8` contents, base64 credentials, or private keys in chat, screenshots, git, or an issue. If secure secret entry cannot be performed without exposing values, stop at that step and let the owner enter them directly in GitHub settings.
 
 Signed archives and real Apple uploads have not been tested yet because credentials are not configured. The first successful upload and processed TestFlight build are the acceptance checks for completing setup.
@@ -107,3 +107,11 @@ Signed archives and real Apple uploads have not been tested yet because credenti
 ## Native feedback credential
 
 Also add `APP_CHANGE_GH_TOKEN` as a repository or `testflight` environment Actions secret. This must be a separate fine-grained PAT restricted to this repository with Issues read/write only. It is injected into the signed app for anonymous native change submissions and can be extracted by an app recipient. The owner has accepted this tradeoff for the small TestFlight group; never substitute the code-writing `CODEX_GH_TOKEN`. See APP-CHANGE-AGENT.md for rotation and request approval.
+
+## Workflow trigger audit
+
+- `check.yml`: main pushes, PR updates, and manual dispatch. CI always validates those events. Automatic TestFlight eligibility covers `Pacer/`, `Sources/`, `Pacer.xcodeproj/`, `Package.swift`, and `Package.resolved`; it excludes docs, tests, and automation. Only the latest main commit may upload. Successful uploads for the same commit (including earlier run attempts) suppress automatic duplicate uploads. Manual upload requires the explicit checkbox and can bypass duplicate detection.
+- `app-change.yml`: issue labeling with `ready-for-agent`, or manual dispatch with an approved issue number. Evaluates, validates, and proposes PRs; never signs or exports an app. Other label events skip all jobs.
+- `feedback-smoke-test.yml`: manual dispatch only. Exercises issue creation and closes its test issue; never builds, signs, or exports an app.
+
+The main/PR CI concurrency group cancels older runs for the same event and ref. Upload jobs remain serialized. A cancellation cannot retract a build Apple has already accepted; check TestFlight separately for processing and availability.

@@ -9,16 +9,13 @@ import subprocess
 def affects_release(path):
     return path.startswith(('Pacer/', 'Sources/', 'Pacer.xcodeproj/')) or path in {
         'Package.swift', 'Package.resolved',
-        '.github/workflows/check.yml',
-        'scripts/publish-testflight.sh', 'scripts/upload-testflight.py',
-        'scripts/testflight-changes.py',
     }
 
 
 def release_needed(event_name, event):
-    # Manual runs remain an explicit way to upload a replacement build.
+    # A manual validation run only uploads when explicitly requested.
     if event_name == 'workflow_dispatch':
-        return True
+        return event.get('inputs', {}).get('upload_testflight') in (True, 'true')
     if event_name != 'push':
         return False
     before, after = event.get('before', ''), event.get('after', '')
