@@ -32,6 +32,17 @@ public enum DistanceUnit: String, CaseIterable, Identifiable {
         return String(format: "%d:%02d", rounded / 60, rounded % 60)
     }
 
+    public func paceDifferenceText(pace: Double?, target: Double) -> String {
+        guard let pace, pace.isFinite, target.isFinite else {
+            return "No moving pace available. Start jogging to measure your pace."
+        }
+        let difference = Int(displayedPace(secondsPerKilometre: pace - target).rounded())
+        if difference == 0 { return "You are at your target pace." }
+        let direction = difference > 0 ? "slower" : "faster"
+        let unitName = self == .kilometres ? "kilometre" : "mile"
+        return "You are \(abs(difference)) seconds per \(unitName) \(direction) than your target."
+    }
+
     public func distanceText(metres: Double) -> String {
         String(format: "%.2f %@", metres / metresPerUnit, symbol)
     }

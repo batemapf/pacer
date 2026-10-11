@@ -82,6 +82,13 @@ struct ContentView: View {
                             .fill(Color.purple.opacity(0.12))
                     }
                 }
+                if !run.warmUpRemainingText.isEmpty {
+                    Text(run.warmUpRemainingText).font(.callout).monospacedDigit()
+                        .multilineTextAlignment(.center)
+                }
+                if !run.warmUpReport.isEmpty {
+                    Text(run.warmUpReport).font(.callout).multilineTextAlignment(.center)
+                }
                 Text(run.status).font(.callout).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center).frame(minHeight: 44)
                 Button {
@@ -144,6 +151,13 @@ private struct RunSettingsView: View {
                     Toggle("Haptic coaching", isOn: $run.hapticCoachingEnabled)
                 } footer: {
                     Text("Feel pace cues while the app is open, with or without spoken coaching. Haptics may be unavailable when the screen is locked or the app is in the background.")
+                }
+                Section {
+                    Stepper(run.warmUpMinutes == 0 ? "Warm-up: Off" : "Warm-up: \(run.warmUpMinutes) minutes",
+                            value: $run.warmUpMinutes, in: 0...30)
+                        .disabled(run.isRunning)
+                } footer: {
+                    Text("Track pace and distance without coaching for the first 0–30 minutes. After warm-up, show and speak your difference from target when GPS is reliable. Set before starting a run; 0 turns warm-up off.")
                 }
                 Section("Audio") {
                     Toggle("Spoken coaching", isOn: $run.coachingEnabled)
