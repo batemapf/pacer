@@ -107,6 +107,11 @@ private struct RunSettingsView: View {
                         Text("Miles").tag(DistanceUnit.miles)
                     }.pickerStyle(.segmented)
                 }
+                Section {
+                    Toggle("Haptic coaching", isOn: $run.hapticCoachingEnabled)
+                } footer: {
+                    Text("Feel pace cues while the app is open, with or without spoken coaching. Haptics may be unavailable when the screen is locked or the app is in the background.")
+                }
                 Section("Audio") {
                     Toggle("Spoken coaching", isOn: $run.coachingEnabled)
                     Picker("Voice", selection: $run.voiceIdentifier) {

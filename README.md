@@ -21,12 +21,17 @@ Open the gear button for **Settings**:
   the physical target and run totals. The target range is 4:00–12:00/km,
   approximately 6:26–19:19/mile.
 - **Spoken coaching:** enables or silences audio cues.
+- **Haptic coaching:** optional vibration cues, off by default, independent of
+  speech. While the app is active, success feedback means on target, warning
+  feedback means speed up, and error feedback means slow down. Gentle and strong
+  corrections share the same pattern. iOS and device settings control delivery;
+  haptics are not guaranteed in the background or with the screen locked.
 - **Voice:** selects an installed English iOS voice; **Preview voice** auditions
   it. Voices come from the phone, not from bundled recordings. If a saved voice
   becomes unavailable, coaching falls back to the default US English voice.
 - **Change app:** submits a suggestion directly from the app.
 
-Units, coaching preference, and voice selection are remembered between launches.
+Units, spoken and haptic coaching preferences, and voice selection are remembered between launches.
 The app requests music ducking while it speaks and releases the audio session
 after each cue. Its icon and installed name are **Speed Up or Slow Down**.
 
@@ -68,10 +73,11 @@ its list is exhausted and no immediate repeat across shuffle cycles.
 | More than 60 sec/km off (about 97 sec/mile) | Clearer directional correction | 30 seconds |
 
 These are delays between eligible cues, not fixed alarms: GPS still needs to be
-usable, coaching enabled, and speech idle. The first cue can play after the
+usable and either spoken coaching available with speech idle or haptic coaching
+enabled while the app is active. Both outputs share the same cooldown. The first cue can play after the
 10-second GPS settling window. Worsening pace shortens the next wait to 30 seconds;
 getting back on target slows the chatter down again. Unit changes preserve the
-same physical bands. Muting coaching does not consume the cue cooldown.
+same physical bands. Disabling both coaching outputs does not consume the cue cooldown.
 
 Examples: “Your feet have formed a successful committee,” “Add a sprinkle of
 hustle,” and “We ordered a jog, not a rocket launch.”
