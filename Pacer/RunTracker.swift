@@ -8,7 +8,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     @Published private(set) var paceSecondsPerKilometre: Double? = nil
     @Published private(set) var elapsedText = "0:00"
     @Published private(set) var distanceMetres = 0.0
-    @Published private(set) var status = "Ready."
+    @Published private(set) var status = ""
     @Published var targetPaceSecondsPerKilometre = 360.0 {
         didSet {
             // Cancel a nudge for the old target. The next GPS fix uses the new target
