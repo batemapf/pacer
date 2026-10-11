@@ -15,6 +15,12 @@ Each press changes the target by 15 seconds per selected unit. Changes apply to
 incoming GPS readings without resetting the run. **Stop run** ends tracking;
 starting again resets the totals.
 
+A **Live pace** graph plots smoothed GPS pace against elapsed minutes during a
+run and becomes a **Run pace summary** when you stop. Faster pace is higher on
+the graph; labels follow your selected kilometres or miles. Gaps indicate
+stationary periods or unavailable GPS pace. The graph stays in memory until the
+next run starts or the app closes; it is not saved run history.
+
 Open the gear button for **Settings**:
 
 - **Colorful appearance:** optionally adds teal, orange, and purple accents and

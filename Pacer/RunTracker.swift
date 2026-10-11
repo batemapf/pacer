@@ -4,11 +4,20 @@ import CoreLocation
 import AVFoundation
 import UIKit
 
+struct PaceSample: Identifiable {
+    let id: Int
+    let elapsedSeconds: Double
+    let secondsPerKilometre: Double
+    let segment: Int
+}
+
 final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, AVSpeechSynthesizerDelegate {
     @Published private(set) var isRunning = false
     @Published private(set) var paceSecondsPerKilometre: Double? = nil
     @Published private(set) var elapsedText = "0:00"
     @Published private(set) var distanceMetres = 0.0
+    @Published private(set) var paceSamples: [PaceSample] = []
+    @Published private(set) var elapsedSeconds = 0.0
     @Published private(set) var status = ""
     @Published private(set) var warmUpRemainingText = ""
     @Published private(set) var warmUpReport = ""
@@ -60,6 +69,8 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     private var timer: Timer?
     private var pendingStart = false
     private var audioActive = false
+    private var paceSegment = 0
+    private var lastGraphFix: Date?
 
     override init() {
         super.init()
@@ -94,6 +105,10 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             lastFix = nil
             startedAt = start
             distanceMetres = 0
+            paceSamples = []
+            elapsedSeconds = 0
+            paceSegment = 0
+            lastGraphFix = nil
             paceSecondsPerKilometre = nil
             elapsedText = "0:00"
             isRunning = true
@@ -110,6 +125,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     }
 
     func stop() {
+        tick()
         pendingStart = false
         location.stopUpdatingLocation()
         timer?.invalidate()
@@ -124,6 +140,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     private func tick() {
         guard isRunning, let start = startedAt else { return }
         let seconds = max(0, Int(Date().timeIntervalSince(start)))
+        elapsedSeconds = Double(seconds)
         elapsedText = String(format: "%d:%02d", seconds / 60, seconds % 60)
         if let end = warmUpEndsAt {
             let remaining = max(0, Int(ceil(end.timeIntervalSinceNow)))
@@ -134,6 +151,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         if Date().timeIntervalSince(lastFix ?? start) > 8 {
             engine.loseSignal()
             paceSecondsPerKilometre = nil
+            recordPace(at: Date())
             status = "Waiting for a reliable GPS signal. Coaching paused."
         }
     }
@@ -163,6 +181,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
                                 coachingAvailable: (coachingEnabled && !speech.isSpeaking) || hapticsAvailable)
         distanceMetres = engine.distanceMetres
         paceSecondsPerKilometre = engine.paceSecondsPerKilometre
+        recordPace(at: fix.timestamp)
         if engine.speedMetresPerSecond == nil {
             status = "GPS acquired; settling the pace estimate."
         } else if engine.paceSecondsPerKilometre == nil {
@@ -196,6 +215,22 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         }
     }
 
+    private func recordPace(at date: Date) {
+        guard let start = startedAt else { return }
+        guard let pace = paceSecondsPerKilometre, pace.isFinite, pace > 0 else {
+            if lastGraphFix != nil { paceSegment += 1 }
+            lastGraphFix = nil
+            return
+        }
+        if let previous = lastGraphFix, date.timeIntervalSince(previous) > 8 {
+            paceSegment += 1
+        }
+        lastGraphFix = date
+        paceSamples.append(PaceSample(id: paceSamples.count,
+                                     elapsedSeconds: max(0, date.timeIntervalSince(start)),
+                                     secondsPerKilometre: pace, segment: paceSegment))
+    }
+
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         if let error = error as? CLError, error.code == .denied {
             stop()
@@ -203,6 +238,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         } else {
             engine.loseSignal()
             paceSecondsPerKilometre = nil
+            recordPace(at: Date())
             status = "GPS temporarily unavailable. Coaching paused."
         }
     }
