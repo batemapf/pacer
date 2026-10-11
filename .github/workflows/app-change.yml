@@ -32,13 +32,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/app-change-agent.py prepare
-      - name: Confirm API secret is configured
+      - name: Confirm agent secrets are configured
         if: steps.prepare.outputs.run == 'true'
         env:
           API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PUBLISH_TOKEN: ${{ secrets.CODEX_GH_TOKEN }}
         run: |
           if [ -z "$API_KEY" ]; then
             echo '::error::Add repository Actions secret OPENAI_API_KEY.'
+            exit 1
+          fi
+          if [ -z "$PUBLISH_TOKEN" ]; then
+            echo '::error::Add repository Actions secret CODEX_GH_TOKEN.'
             exit 1
           fi
       - name: Evaluate and implement request
