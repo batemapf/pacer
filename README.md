@@ -17,6 +17,9 @@ starting again resets the totals.
 
 Open the gear button for **Settings**:
 
+- **Colorful appearance:** optionally adds teal, orange, and purple accents and
+  softly tinted cards to the run screen. Off by default; text stays in the
+  system's adaptive colors for light and dark appearances.
 - **Kilometres / Miles:** changes pace and distance displays while preserving
   the physical target and run totals. The target range is 4:00–12:00/km,
   approximately 6:26–19:19/mile.
@@ -31,7 +34,7 @@ Open the gear button for **Settings**:
   becomes unavailable, coaching falls back to the default US English voice.
 - **Change app:** submits a suggestion directly from the app.
 
-Units, spoken and haptic coaching preferences, and voice selection are remembered between launches.
+Appearance, units, spoken and haptic coaching preferences, and voice selection are remembered between launches.
 The app requests music ducking while it speaks and releases the audio session
 after each cue. Its icon and installed name are **Speed Up or Slow Down**.
 
