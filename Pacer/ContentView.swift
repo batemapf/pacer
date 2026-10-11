@@ -20,8 +20,8 @@ struct ContentView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                Text("Pacer").font(.largeTitle.bold())
-                Text("Outdoor jogging coach").foregroundStyle(.secondary)
+                Text("Speed Up or Slow Down")
+                    .font(.title.bold()).multilineTextAlignment(.center)
                 Picker("Distance units", selection: $unit) {
                     Text("Kilometres").tag(DistanceUnit.kilometres)
                     Text("Miles").tag(DistanceUnit.miles)
@@ -51,8 +51,6 @@ struct ContentView: View {
                             Label("Slower", systemImage: "plus")
                         }.disabled(displayedTarget.wrappedValue >= unit.targetRange.upperBound)
                     }.buttonStyle(.bordered)
-                    Text("Adjust any time. Buttons change the target by 15 sec/\(unit.symbol).")
-                        .font(.caption).foregroundStyle(.secondary)
                 }
                 Toggle("Spoken coaching", isOn: $run.coachingEnabled)
                 Text(run.status).font(.callout).foregroundStyle(.secondary)
@@ -63,8 +61,6 @@ struct ContentView: View {
                     Text(run.isRunning ? "Stop run" : "Start run")
                         .frame(maxWidth: .infinity).padding(.vertical, 10)
                 }.buttonStyle(.borderedProminent).tint(run.isRunning ? .red : .blue)
-                Text("Allow Precise Location. Keep your phone with you. Coaching starts after GPS settles: praise every 2 minutes, gentle nudges every minute, bigger corrections every 30 seconds.")
-                    .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }.padding(24)
         }
     }

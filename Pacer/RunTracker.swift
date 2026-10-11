@@ -8,7 +8,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     @Published private(set) var paceSecondsPerKilometre: Double? = nil
     @Published private(set) var elapsedText = "0:00"
     @Published private(set) var distanceMetres = 0.0
-    @Published private(set) var status = "Ready for an outdoor run."
+    @Published private(set) var status = "Ready."
     @Published var targetPaceSecondsPerKilometre = 360.0 {
         didSet {
             // Cancel a nudge for the old target. The next GPS fix uses the new target
@@ -52,7 +52,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             location.requestWhenInUseAuthorization()
         case .authorizedAlways, .authorizedWhenInUse:
             guard location.accuracyAuthorization == .fullAccuracy else {
-                status = "Enable Precise Location for Pacer in Settings to measure pace."
+                status = "Enable Precise Location for Speed Up or Slow Down in Settings to measure pace."
                 return
             }
             pendingStart = false
@@ -63,14 +63,14 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             paceSecondsPerKilometre = nil
             elapsedText = "0:00"
             isRunning = true
-            status = "Acquiring GPS; walk or jog outside for at least 10 seconds."
+            status = "Acquiring GPS…"
             location.startUpdatingLocation()
             timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
                 self?.tick()
             }
         default:
             pendingStart = false
-            status = "Allow Location access for Pacer in Settings before starting."
+            status = "Allow Location access for Speed Up or Slow Down in Settings before starting."
         }
     }
 
@@ -82,7 +82,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         isRunning = false
         speech.stopSpeaking(at: .immediate)
         releaseAudio()
-        status = "Run ended. Starting again resets the totals."
+        status = "Run ended."
     }
 
     private func tick() {
@@ -123,7 +123,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         if engine.speedMetresPerSecond == nil {
             status = "GPS acquired; settling the pace estimate."
         } else if engine.paceSecondsPerKilometre == nil {
-            status = "Stationary or walking very slowly. Stop the run to take a break."
+            status = "Stationary."
         } else {
             status = "Tracking your outdoor pace."
         }
@@ -133,7 +133,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         if let error = error as? CLError, error.code == .denied {
             stop()
-            status = "Location unavailable. Check Location Services and Pacer permissions."
+            status = "Location unavailable. Check Location Services and Speed Up or Slow Down permissions."
         } else {
             engine.loseSignal()
             paceSecondsPerKilometre = nil
