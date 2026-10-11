@@ -103,3 +103,7 @@ External tester groups may require beta review and additional metadata. This wor
 - For a Codex computer-use session: the owner logs into Apple locally, authorizes the setup, then follows these steps. Never put passwords, `.p12`/`.p8` contents, base64 credentials, or private keys in chat, screenshots, git, or an issue. If secure secret entry cannot be performed without exposing values, stop at that step and let the owner enter them directly in GitHub settings.
 
 Signed archives and real Apple uploads have not been tested yet because credentials are not configured. The first successful upload and processed TestFlight build are the acceptance checks for completing setup.
+
+## Native feedback credential
+
+Also add `APP_CHANGE_GH_TOKEN` as a repository or `testflight` environment Actions secret. This must be a separate fine-grained PAT restricted to this repository with Issues read/write only. It is injected into the signed app for anonymous native change submissions and can be extracted by an app recipient. The owner has accepted this tradeoff for the small TestFlight group; never substitute the code-writing `CODEX_GH_TOKEN`. See APP-CHANGE-AGENT.md for rotation and request approval.

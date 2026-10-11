@@ -38,7 +38,8 @@ class ProfileValidationTests(unittest.TestCase):
             (root / 'profile.plist').write_bytes(plistlib.dumps(profile))
             (root / 'identities.txt').write_text(fingerprint if identity else '')
             env = dict(os.environ, PACER_SIGNING_DIR=str(root), IOS_TEAM_ID='ABCDEF1234',
-                       IOS_BUNDLE_ID='com.example.pacer', GITHUB_RUN_NUMBER='42', GITHUB_RUN_ATTEMPT='2')
+                       IOS_BUNDLE_ID='com.example.pacer', GITHUB_RUN_NUMBER='42', GITHUB_RUN_ATTEMPT='2',
+                       APP_CHANGE_GH_TOKEN='synthetic-issue-only-token')
             result = subprocess.run(['python3', '-c', VALIDATE], cwd=root, env=env,
                                     capture_output=True, text=True)
             if result.returncode == 0:
@@ -47,6 +48,7 @@ class ProfileValidationTests(unittest.TestCase):
                 self.assertEqual(exported['signingCertificate'], fingerprint)
                 self.assertEqual(exported['provisioningProfiles']['com.example.pacer'], profile['UUID'])
                 self.assertEqual(info['CFBundleVersion'], '42.2')
+                self.assertEqual(info['AppChangeGitHubToken'], 'synthetic-issue-only-token')
             return result
 
     def test_matching_profile_exports_manual_signing_and_unique_build(self):

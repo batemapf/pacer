@@ -122,6 +122,13 @@ private struct RunSettingsView: View {
                         run.previewVoice()
                     }
                 }
+                Section {
+                    NavigationLink {
+                        AppChangeView()
+                    } label: {
+                        Label("Change app", systemImage: "wand.and.stars")
+                    }
+                }
             }
             .navigationTitle("Settings")
             .toolbar {
@@ -135,4 +142,142 @@ private struct RunSettingsView: View {
             if phase == .active { refreshVoices() }
         }
     }
+}
+
+
+private struct AppChangeView: View {
+    @AppStorage("appChangeDraft") private var draft = ""
+    @AppStorage("appChangeName") private var name = ""
+    @AppStorage("appChangeRequestID") private var requestID = ""
+    @State private var sending = false
+    @State private var errorMessage: String?
+    @State private var sentNumber: Int?
+    @State private var sentURL: URL?
+
+    private var request: String { draft.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var githubToken: String {
+        Bundle.main.object(forInfoDictionaryKey: "AppChangeGitHubToken") as? String ?? ""
+    }
+
+    private func githubRequest(_ url: URL) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 20
+        request.setValue("Bearer " + githubToken, forHTTPHeaderField: "Authorization")
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
+        request.setValue("Speed-Up-or-Slow-Down", forHTTPHeaderField: "User-Agent")
+        return request
+    }
+
+    @MainActor private func showReceipt(_ result: ChangeReceipt) throws {
+        guard let url = URL(string: result.html_url), url.scheme == "https", url.host == "github.com",
+              url.path == "/batemapf/pacer/issues/\(result.number)" else { throw URLError(.badServerResponse) }
+        sentNumber = result.number
+        sentURL = url
+        draft = ""
+        requestID = ""
+    }
+
+    @MainActor private func submit() async {
+        guard !githubToken.isEmpty, !sending else { return }
+        sending = true
+        errorMessage = nil
+        defer { sending = false }
+        let retrying = !requestID.isEmpty
+        if requestID.isEmpty { requestID = UUID().uuidString }
+        let marker = "<!-- app-change-request:\(requestID) -->"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+        do {
+            // Check recent requests after an uncertain response before posting again.
+            if retrying {
+                let lookup = githubRequest(URL(string: "https://api.github.com/repos/batemapf/pacer/issues?labels=app-change&state=all&sort=created&direction=desc&per_page=100")!)
+                let (data, response) = try await URLSession.shared.data(for: lookup)
+                guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+                let recent = try JSONDecoder().decode([ChangeReceipt].self, from: data)
+                if let existing = recent.first(where: { $0.body?.contains(marker) == true }) {
+                    try showReceipt(existing)
+                    return
+                }
+            }
+            var submission = githubRequest(URL(string: "https://api.github.com/repos/batemapf/pacer/issues")!)
+            submission.httpMethod = "POST"
+            submission.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let author = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let title = "App change: " + String((request.split(separator: "\n").first.map(String.init) ?? request).prefix(100))
+            let body = request + "\n\n---\nSubmitted from Speed Up or Slow Down \(version) (\(build)).\nName supplied by tester (unverified): \(author.isEmpty ? "Anonymous tester" : author)\n\nA maintainer must apply ready-for-agent before Codex runs.\n\n" + marker
+            submission.httpBody = try JSONEncoder().encode(ChangeSubmission(title: title, body: body, labels: ["app-change"]))
+            let (data, response) = try await URLSession.shared.data(for: submission)
+            guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+            guard http.statusCode == 201 else {
+                switch http.statusCode {
+                case 401: errorMessage = "Change requests need an updated app credential. Please let the app owner know."
+                case 403, 429: errorMessage = "Change requests are temporarily unavailable. Please try again later."
+                default: errorMessage = "Could not send your request. Your draft is saved; please retry."
+                }
+                return
+            }
+            try showReceipt(JSONDecoder().decode(ChangeReceipt.self, from: data))
+        } catch {
+            errorMessage = "Could not confirm delivery. Your draft is saved; please retry."
+        }
+    }
+
+    var body: some View {
+        Form {
+            if let sentNumber {
+                Section {
+                    Label("Request #\(sentNumber) sent", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("It will be reviewed before the agent starts working on it.")
+                    if let sentURL { Link("View request", destination: sentURL) }
+                }
+            }
+            Section("What would you like changed?") {
+                TextEditor(text: $draft).frame(minHeight: 180)
+                    .accessibilityLabel("Describe the change you want")
+                    .disabled(sending)
+                if request.count > 4_000 {
+                    Text("Please keep the request under 4,000 characters.")
+                        .font(.caption).foregroundStyle(.red)
+                }
+            }
+            Section {
+                TextField("Name (optional)", text: $name)
+                    .textContentType(.nickname).disabled(sending)
+            } footer: {
+                Text("No account needed. Requests are posted to the app’s public GitHub repository, so leave out personal details and passwords.")
+            }
+            Section {
+                Button { Task { await submit() } } label: {
+                    HStack {
+                        Text(sending ? "Sending…" : "Send request")
+                        if sending { Spacer(); ProgressView() }
+                    }
+                }
+                .disabled(sending || request.count < 5 || request.count > 4_000 || name.count > 80 || githubToken.isEmpty)
+                if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
+                if githubToken.isEmpty {
+                    Text("Change requests aren’t available in this build yet.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle("Change app")
+        .onChange(of: draft) { _, _ in if !sending { requestID = "" } }
+        .onChange(of: name) { _, _ in if !sending { requestID = "" } }
+        .interactiveDismissDisabled(sending)
+    }
+}
+
+private struct ChangeSubmission: Encodable {
+    let title: String
+    let body: String
+    let labels: [String]
+}
+
+private struct ChangeReceipt: Decodable {
+    let number: Int
+    let html_url: String
+    let body: String?
 }

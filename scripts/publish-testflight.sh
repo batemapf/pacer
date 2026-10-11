@@ -5,7 +5,7 @@ umask 077
 
 for name in IOS_TEAM_ID IOS_BUNDLE_ID ASC_API_KEY_ID ASC_API_ISSUER_ID \
     IOS_DISTRIBUTION_P12_BASE64 IOS_DISTRIBUTION_P12_PASSWORD \
-    IOS_APP_STORE_PROFILE_BASE64 ASC_API_KEY_P8_BASE64; do
+    IOS_APP_STORE_PROFILE_BASE64 ASC_API_KEY_P8_BASE64 APP_CHANGE_GH_TOKEN; do
     value="${!name:-}"
     if [[ -z "$value" || "$value" == SET_ME* ]]; then
         echo "::error::Missing configuration: $name. Follow TESTFLIGHT-CI.md."
@@ -117,6 +117,8 @@ attempt = os.environ['GITHUB_RUN_ATTEMPT']
 if not number.isdecimal() or not attempt.isdecimal():
     raise SystemExit('Invalid GitHub build-number inputs.')
 info['CFBundleVersion'] = number + '.' + attempt
+# Dedicated issue-only PAT is injected into the private signed build, never source.
+info['AppChangeGitHubToken'] = os.environ['APP_CHANGE_GH_TOKEN']
 plist_path.write_bytes(plistlib.dumps(info))
 PY
 

@@ -94,53 +94,6 @@ and audio modes are declared to support a run with the screen locked.
 
 ## Suggest a change
 
-Testers can currently open a GitHub issue describing the desired app behavior.
-A maintainer can apply the `ready-for-agent` label to request an agent proposal.
-Proposals require owner review before merging. The in-app suggestion form is
-not implemented yet.
+Open **Settings → Change app**, describe the desired behavior, optionally add your name, and tap **Send request**. No tester account or GitHub login is required. The app creates a public GitHub issue and shows a receipt link; drafts survive failed submissions. Leave credentials and private details out of requests.
 
-## Development checks
-
-The same `Sources/PacerCore/PaceEngine.swift` is compiled into the iOS app and
-the standalone Swift package. With Swift 5.9 or later:
-
-```sh
-swift test
-```
-
-Without a local Swift installation, use the official Swift Docker image:
-
-```sh
-docker run --rm -v "$PWD:/app" -w /app swift:6.0.3 swift test --jobs 2
-```
-
-On a Mac, also compile the actual app without device signing:
-
-```sh
-xcodebuild -project Pacer.xcodeproj -scheme Pacer -configuration Debug \
-  -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-  -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build
-```
-
-The shared app scheme has no XCTest target: use **`swift test`** for core tests,
-not an empty `xcodebuild test` run. GitHub Actions runs core tests and the iOS
-simulator build on macOS once these files are pushed. A simulator build cannot
-prove real GPS accuracy or background audio behavior.
-
-The **iOS build and pace tests** workflow also supports **Run workflow** in the
-repository's Actions tab. It uses GitHub's standard `macos-15` hosted runner,
-read-only repository permissions, and a 15-minute timeout. No Apple signing
-secrets or paid Apple developer account are needed for this simulator build.
-GitHub Actions must be enabled for the repository and allow `actions/checkout`.
-Private repositories use the account's included Actions allowance or paid usage;
-check Actions billing and budgets if GitHub refuses to start a job.
-
-Before relying on coaching, verify on a real iPhone: changing the target during a
-run, switching units without changing the target speed or resetting distance,
-location denial and Precise
-Location off, settling outdoors, both cue directions, the cooldown, loss and
-recovery of GPS, music/headphone ducking, several minutes with the screen locked,
-stopping (no subsequent cues/location indicator), and force-quit behavior.
-
-No location data leaves the app. There is no analytics, backend, microphone access,
-or credential requirement.
+A maintainer applies `ready-for-agent` to approve agent work. Codex proposes a PR, independent checks must pass, and owner review is required before merging. See [APP-CHANGE-AGENT.md](APP-CHANGE-AGENT.md) for setup and scope.

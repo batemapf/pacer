@@ -24,4 +24,14 @@ Only existing `Pacer/ContentView.swift`, `Pacer/RunTracker.swift`, `Pacer/PacerA
 3. Inspect the workflow run, then the issue comment and proposed PR. The owner decides whether to merge.
 4. If a run fails before creating a PR, fix the cause and manually rerun the workflow with the issue number. An existing PR for `codex/issue-N` prevents another agent proposal for that issue. For further work after a PR exists, use a new issue.
 
-Concurrency prevents simultaneous jobs for the same issue. GitHub may replace older pending jobs for that issue; the latest request remains queued. This is a one-pass prototype: no automatic repair loop, automatic merge, or in-app feedback form yet. A request that needs clarification can be edited and manually resubmitted.
+Concurrency prevents simultaneous jobs for the same issue. GitHub may replace older pending jobs for that issue; the latest request remains queued. This is a one-pass prototype: no automatic repair loop, automatic merge, yet. A request that needs clarification can be edited and manually resubmitted.
+
+## Native anonymous requests
+
+**Settings → Change app** sends a JSON POST directly to GitHub's issues API, without tester authentication. An optional name is unverified; GitHub attributes the issue to the token owner. Issues are public because this repository is public. The app includes its version/build but sends no location, pace data, or device identifier. A random request ID helps recover receipts after uncertain delivery; recent labeled issues are checked before retrying.
+
+Create a **separate fine-grained PAT** restricted to `batemapf/pacer` with **Issues read/write only** and store it as `APP_CHANGE_GH_TOKEN` in repository Actions secrets or the `testflight` environment secrets. Do not reuse `CODEX_GH_TOKEN`, which can write app code. Choose an expiration and rotate this credential with a new TestFlight build before it expires.
+
+The release script injects the PAT into the disposable build's Info.plist. It is never committed or printed. It **can be extracted from the distributed app**, so this shared credential is appropriate only for the owner's explicitly accepted friends/TestFlight use. The checked-in plist contains an empty value; unsigned/local builds disable submission unless locally configured. No API key or code-writing token is shipped. The upload job fails clearly if the issue-only secret is missing.
+
+Native requests get only `app-change`, never `ready-for-agent`: a maintainer approves agent execution to protect the API budget. After that, the existing issue-to-PR workflow handles the request. No backend, Cloudflare account, or user login is needed.
