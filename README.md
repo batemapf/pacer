@@ -1,8 +1,8 @@
-# Pacer
+# Speed Up or Slow Down
 
 A tiny native iPhone app for outdoor jogging. Set a target pace (minutes/km or minutes/mile),
 start a run, and hear playful praise or progressively stronger pace corrections.
-No account, server, API key, or external sensor.
+Running needs no account, server, API key, or external sensor. Optional change requests connect directly to GitHub.
 
 ## Run on an iPhone
 
@@ -20,7 +20,7 @@ No account, server, API key, or external sensor.
    Changes apply to the next usable GPS reading without restarting the run; the
    30-second coaching cooldown still applies.
 
-Use the **Kilometres / Miles** toggle to change both pace and distance displays,
+Use **Settings → Kilometres / Miles** to change both pace and distance displays,
 including during a run. Switching units preserves the physical target pace and
 all run totals. Your unit preference is remembered. The target range covers the
 same speeds: 4:00–12:00/km, approximately 6:26–19:19/mile.
@@ -94,10 +94,9 @@ and audio modes are declared to support a run with the screen locked.
 
 ## Suggest a change
 
-Testers can currently open a GitHub issue describing the desired app behavior.
-A maintainer can apply the `ready-for-agent` label to request an agent proposal.
-Proposals require owner review before merging. The in-app suggestion form is
-not implemented yet.
+Open **Settings → Change app**, describe the desired behavior, optionally add your name, and tap **Send request**. No tester account or GitHub login is required. The app creates a public GitHub issue and shows a receipt link; drafts survive failed submissions. Leave credentials and private details out of requests.
+
+A maintainer applies `ready-for-agent` to approve agent work. Codex proposes a PR, independent checks must pass, and owner review is required before merging. See [APP-CHANGE-AGENT.md](APP-CHANGE-AGENT.md) for setup and scope.
 
 ## Development checks
 
@@ -142,5 +141,4 @@ Location off, settling outdoors, both cue directions, the cooldown, loss and
 recovery of GPS, music/headphone ducking, several minutes with the screen locked,
 stopping (no subsequent cues/location indicator), and force-quit behavior.
 
-No location data leaves the app. There is no analytics, backend, microphone access,
-or credential requirement.
+No location data leaves the app. There is no analytics, backend, or microphone access. Running needs no credentials; optional change requests use the issue-only credential injected into TestFlight builds.

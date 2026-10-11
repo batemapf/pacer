@@ -60,6 +60,7 @@ jobs:
       IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
       IOS_APP_STORE_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_PROFILE_BASE64 }}
       ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+      APP_CHANGE_GH_TOKEN: ${{ secrets.APP_CHANGE_GH_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - name: Show upload Apple toolchain
