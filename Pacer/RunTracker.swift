@@ -18,8 +18,22 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             }
         }
     }
-    @Published var coachingEnabled = true {
-        didSet { if !coachingEnabled { speech.stopSpeaking(at: .immediate) } }
+    @Published var coachingEnabled = UserDefaults.standard.object(forKey: "coachingEnabled") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(coachingEnabled, forKey: "coachingEnabled")
+            if !coachingEnabled { speech.stopSpeaking(at: .immediate) }
+        }
+    }
+    @Published var voiceIdentifier = UserDefaults.standard.string(forKey: "coachingVoiceIdentifier") ?? "" {
+        didSet {
+            UserDefaults.standard.set(voiceIdentifier, forKey: "coachingVoiceIdentifier")
+            if voiceIdentifier != oldValue { speech.stopSpeaking(at: .immediate) }
+        }
+    }
+
+    func previewVoice() {
+        speech.stopSpeaking(at: .immediate)
+        speak("Looking good! Keep this pace. Your future self is already bragging.")
     }
 
     private let location = CLLocationManager()
@@ -150,7 +164,8 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             try session.setActive(true)
             audioActive = true
             let utterance = AVSpeechUtterance(string: text)
-            utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+            utterance.voice = AVSpeechSynthesisVoice(identifier: voiceIdentifier)
+                ?? AVSpeechSynthesisVoice(language: "en-US")
             speech.speak(utterance)
         } catch {
             releaseAudio()
