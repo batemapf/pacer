@@ -136,8 +136,7 @@ xcodebuild -exportArchive -archivePath "$signing_dir/Pacer.xcarchive" \
     -exportPath "$signing_dir/export" -exportOptionsPlist "$signing_dir/ExportOptions.plist"
 
 export API_PRIVATE_KEYS_DIR="$signing_dir/private_keys"
-xcrun altool --upload-app --type ios --file "$signing_dir/export/Pacer.ipa" \
-    --apiKey "$ASC_API_KEY_ID" --apiIssuer "$ASC_API_ISSUER_ID"
+python3 scripts/upload-testflight.py "$signing_dir/export"
 {
     echo '### TestFlight upload accepted'
     echo "Build: $GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT"
