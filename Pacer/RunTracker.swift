@@ -2,7 +2,6 @@ import Foundation
 import Combine
 import CoreLocation
 import AVFoundation
-import UIKit
 
 struct PaceSample: Identifiable {
     let id: Int
@@ -40,11 +39,6 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             if !coachingEnabled { speech.stopSpeaking(at: .immediate) }
         }
     }
-    @Published var hapticCoachingEnabled = UserDefaults.standard.bool(forKey: "hapticCoachingEnabled") {
-        didSet {
-            UserDefaults.standard.set(hapticCoachingEnabled, forKey: "hapticCoachingEnabled")
-        }
-    }
     @Published var voiceIdentifier = UserDefaults.standard.string(forKey: "coachingVoiceIdentifier") ?? "" {
         didSet {
             UserDefaults.standard.set(voiceIdentifier, forKey: "coachingVoiceIdentifier")
@@ -59,7 +53,6 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
 
     private let location = CLLocationManager()
     private let speech = AVSpeechSynthesizer()
-    private let haptics = UINotificationFeedbackGenerator()
     private var engine = PaceEngine()
     private var phrases = CoachingPhrases()
     private var warmUpEndsAt: Date?
@@ -228,10 +221,9 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
               fix.speed >= 0, fix.speed <= 8,
               lastFix.map({ fix.timestamp.timeIntervalSince($0) >= 1 }) ?? true else { return }
         lastFix = fix.timestamp
-        let hapticsAvailable = hapticCoachingEnabled && UIApplication.shared.applicationState == .active
         let cue = engine.ingest(speed: fix.speed, at: fix.timestamp.timeIntervalSinceReferenceDate - pausedDuration,
                                 targetPace: targetPaceSecondsPerKilometre,
-                                coachingAvailable: (coachingEnabled && !speech.isSpeaking) || hapticsAvailable)
+                                coachingAvailable: coachingEnabled && !speech.isSpeaking)
         distanceMetres = engine.distanceMetres
         paceSecondsPerKilometre = engine.paceSecondsPerKilometre
         recordPace(at: fix.timestamp)
@@ -252,13 +244,6 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             warmUpRemainingText = ""
         }
         if let cue {
-            if hapticsAvailable {
-                switch cue {
-                case .onTarget: haptics.notificationOccurred(.success)
-                case .speedUp, .speedUpMore: haptics.notificationOccurred(.warning)
-                case .slowDown, .slowDownMore: haptics.notificationOccurred(.error)
-                }
-            }
             if coachingEnabled && !speech.isSpeaking {
                 if warmUpSpeechPending && warmUpComplete {
                     speak(report)
