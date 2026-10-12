@@ -19,9 +19,16 @@ public enum DistanceUnit: String, CaseIterable, Identifiable {
         displayedPace * 1000 / metresPerUnit
     }
 
-    /// Same physical pace limits in either unit, so toggling never changes the target.
+    /// Whole 15-second steps within the physical 4:00–12:00/km limits.
     public var targetRange: ClosedRange<Double> {
-        displayedPace(secondsPerKilometre: 240)...displayedPace(secondsPerKilometre: 720)
+        let lower = ceil(displayedPace(secondsPerKilometre: 240) / 15) * 15
+        let upper = floor(displayedPace(secondsPerKilometre: 720) / 15) * 15
+        return lower...upper
+    }
+
+    public func roundedTarget(displayedPace: Double) -> Double {
+        let rounded = (displayedPace / 15).rounded() * 15
+        return min(targetRange.upperBound, max(targetRange.lowerBound, rounded))
     }
 
     public func paceText(secondsPerKilometre: Double?) -> String {

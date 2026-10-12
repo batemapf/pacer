@@ -22,14 +22,40 @@ final class DistanceUnitTests: XCTestCase {
         XCTAssertEqual(DistanceUnit.miles.paceText(secondsPerKilometre: engine.paceSecondsPerKilometre), "10:00")
     }
 
-    func testSwitchingUnitsPreservesPhysicalTargetAndBounds() {
+    func testPaceConversionPreservesPhysicalTarget() {
         for pace in [240.0, 360.0, 720.0] {
             for unit in DistanceUnit.allCases {
                 let displayed = unit.displayedPace(secondsPerKilometre: pace)
                 XCTAssertEqual(unit.secondsPerKilometre(displayedPace: displayed), pace, accuracy: 0.000001)
-                XCTAssertTrue(unit.targetRange.contains(displayed))
             }
         }
+    }
+
+    func testTargetRangesAndAllStepsAreRoundAndWithinPhysicalLimits() {
+        XCTAssertEqual(DistanceUnit.kilometres.targetRange, 240...720)
+        XCTAssertEqual(DistanceUnit.miles.targetRange, 390...1155)
+        for unit in DistanceUnit.allCases {
+            for seconds in stride(from: unit.targetRange.lowerBound,
+                                  through: unit.targetRange.upperBound, by: 15) {
+                let target = unit.secondsPerKilometre(displayedPace: seconds)
+                XCTAssertTrue((240...720).contains(target))
+                XCTAssertEqual(unit.roundedTarget(displayedPace: unit.displayedPace(secondsPerKilometre: target)),
+                               seconds, accuracy: 0.000001)
+            }
+        }
+    }
+
+    func testConvertedTargetsSnapToNearestStepAndClampAtBounds() {
+        let unit = DistanceUnit.miles
+        let converted = unit.displayedPace(secondsPerKilometre: 566)
+        XCTAssertEqual(unit.paceText(secondsPerKilometre: 566), "15:11")
+        let rounded = unit.roundedTarget(displayedPace: converted)
+        XCTAssertEqual(rounded, 915)
+        XCTAssertEqual(unit.paceText(secondsPerKilometre: unit.secondsPerKilometre(displayedPace: rounded)), "15:15")
+        XCTAssertEqual(unit.roundedTarget(displayedPace: unit.displayedPace(secondsPerKilometre: 360)), 585)
+        XCTAssertEqual(unit.roundedTarget(displayedPace: unit.displayedPace(secondsPerKilometre: 240)), 390)
+        XCTAssertEqual(unit.roundedTarget(displayedPace: unit.displayedPace(secondsPerKilometre: 720)), 1155)
+        XCTAssertEqual(DistanceUnit.kilometres.roundedTarget(displayedPace: 363.5), 360)
     }
 
     func testFifteenSecondMileAdjustmentUsesMileUnits() {

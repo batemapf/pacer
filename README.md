@@ -11,7 +11,8 @@ with **Precise Location** enabled, set your target pace, and tap **Start run** o
 Keep the phone with you and allow at least 10 seconds of usable GPS readings.
 
 Adjust the target during a jog with the slider or **Faster / Slower** buttons.
-Each press changes the target by 15 seconds per selected unit. Changes apply to
+Targets use round 15-second increments in the selected unit (for example,
+15:00, 15:15, or 15:30/mile). Each press changes the target by 15 seconds per selected unit. Changes apply to
 incoming GPS readings without resetting the run. **Pause run** freezes elapsed time
 and warm-up, stops GPS tracking and coaching, and preserves distance and the graph.
 **Resume run** continues the same run, excluding the break from elapsed time,
@@ -31,9 +32,9 @@ Open the gear button for **Settings**:
 - **Colorful appearance:** optionally adds teal, orange, and purple accents and
   softly tinted cards to the run screen. Off by default; text stays in the
   system's adaptive colors for light and dark appearances.
-- **Kilometres / Miles:** changes pace and distance displays while preserving
-  the physical target and run totals. The target range is 4:00–12:00/km,
-  approximately 6:26–19:19/mile.
+- **Kilometres / Miles:** changes pace and distance displays and rounds the
+  coaching target to the nearest available 15-second step in the selected unit.
+  Run totals are preserved. The target range is 4:00–12:00/km or 6:30–19:15/mile.
 - **Warm-up:** choose 0–30 whole minutes before starting a run (0/off by default).
   Pace and distance still track, but spoken and haptic pace cues wait. At the end,
   the first reliable estimate shows your difference from target in seconds per
@@ -231,7 +232,7 @@ release job uses the private `testflight` environment after validation passes.
 GitHub Actions and OpenAI API usage are subject to the owner's billing limits.
 
 Before relying on coaching, verify on a real iPhone: changing the target during a
-run, switching units without changing the target speed or resetting distance,
+run, switching units with target rounding and without resetting distance,
 location denial and Precise
 Location off, settling outdoors, both cue directions, the cooldown, loss and
 recovery of GPS, music/headphone ducking, several minutes with the screen locked,
