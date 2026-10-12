@@ -13,6 +13,7 @@ struct PaceSample: Identifiable {
 
 final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, AVSpeechSynthesizerDelegate {
     @Published private(set) var isRunning = false
+    @Published private(set) var isPaused = false
     @Published private(set) var paceSecondsPerKilometre: Double? = nil
     @Published private(set) var elapsedText = "0:00"
     @Published private(set) var distanceMetres = 0.0
@@ -65,6 +66,9 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     private var warmUpReportPending = false
     private var warmUpSpeechPending = false
     private var startedAt: Date?
+    private var pausedAt: Date?
+    private var pausedDuration = 0.0
+    private var acceptingFixesAfter: Date?
     private var lastFix: Date?
     private var timer: Timer?
     private var pendingStart = false
@@ -104,6 +108,10 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             engine = PaceEngine(warmUpEndsAt: warmUpEndsAt?.timeIntervalSinceReferenceDate)
             lastFix = nil
             startedAt = start
+            pausedAt = nil
+            pausedDuration = 0
+            acceptingFixesAfter = start
+            isPaused = false
             distanceMetres = 0
             paceSamples = []
             elapsedSeconds = 0
@@ -124,6 +132,48 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         }
     }
 
+    func pause() {
+        guard isRunning, !isPaused else { return }
+        tick()
+        pausedAt = Date()
+        isPaused = true
+        location.stopUpdatingLocation()
+        timer?.invalidate()
+        timer = nil
+        engine.loseSignal()
+        paceSecondsPerKilometre = nil
+        recordPace(at: Date())
+        speech.stopSpeaking(at: .immediate)
+        releaseAudio()
+        status = "Run paused. Tap Resume run to continue."
+    }
+
+    func resume() {
+        guard isRunning, isPaused, let pause = pausedAt else { return }
+        guard (location.authorizationStatus == .authorizedAlways ||
+               location.authorizationStatus == .authorizedWhenInUse),
+              location.accuracyAuthorization == .fullAccuracy else {
+            status = "Enable Precise Location and Location access in Settings to resume."
+            return
+        }
+        let now = Date()
+        let duration = max(0, now.timeIntervalSince(pause))
+        // Keep the engine's clock in active run time so warm-up and cue
+        // cooldowns exclude the break, just like elapsed time and the graph.
+        pausedDuration += duration
+        startedAt = startedAt?.addingTimeInterval(duration)
+        warmUpEndsAt = warmUpEndsAt?.addingTimeInterval(duration)
+        pausedAt = nil
+        isPaused = false
+        lastFix = now
+        acceptingFixesAfter = now
+        status = "Acquiring GPS…"
+        location.startUpdatingLocation()
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            self?.tick()
+        }
+    }
+
     func stop() {
         tick()
         pendingStart = false
@@ -131,6 +181,8 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         timer?.invalidate()
         timer = nil
         isRunning = false
+        isPaused = false
+        pausedAt = nil
         warmUpRemainingText = ""
         speech.stopSpeaking(at: .immediate)
         releaseAudio()
@@ -138,7 +190,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     }
 
     private func tick() {
-        guard isRunning, let start = startedAt else { return }
+        guard isRunning, !isPaused, let start = startedAt else { return }
         let seconds = max(0, Int(Date().timeIntervalSince(start)))
         elapsedSeconds = Double(seconds)
         elapsedText = String(format: "%d:%02d", seconds / 60, seconds % 60)
@@ -166,17 +218,18 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard isRunning else { return }
+        guard isRunning, !isPaused else { return }
         // Use only the latest fix; cached background batches must not trigger old cues.
         guard let fix = locations.last,
               abs(fix.timestamp.timeIntervalSinceNow) <= 3,
+              acceptingFixesAfter.map({ fix.timestamp >= $0 }) ?? true,
               fix.horizontalAccuracy >= 0, fix.horizontalAccuracy <= 20,
               fix.speedAccuracy >= 0, fix.speedAccuracy <= 1.5,
               fix.speed >= 0, fix.speed <= 8,
               lastFix.map({ fix.timestamp.timeIntervalSince($0) >= 1 }) ?? true else { return }
         lastFix = fix.timestamp
         let hapticsAvailable = hapticCoachingEnabled && UIApplication.shared.applicationState == .active
-        let cue = engine.ingest(speed: fix.speed, at: fix.timestamp.timeIntervalSinceReferenceDate,
+        let cue = engine.ingest(speed: fix.speed, at: fix.timestamp.timeIntervalSinceReferenceDate - pausedDuration,
                                 targetPace: targetPaceSecondsPerKilometre,
                                 coachingAvailable: (coachingEnabled && !speech.isSpeaking) || hapticsAvailable)
         distanceMetres = engine.distanceMetres
@@ -232,6 +285,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        guard isRunning, !isPaused else { return }
         if let error = error as? CLError, error.code == .denied {
             stop()
             status = "Location unavailable. Check Location Services and Speed Up or Slow Down permissions."

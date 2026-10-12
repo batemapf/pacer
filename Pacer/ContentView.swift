@@ -96,6 +96,15 @@ struct ContentView: View {
                 }
                 Text(run.status).font(.callout).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center).frame(minHeight: 44)
+                if run.isRunning {
+                    Button {
+                        if run.isPaused { run.resume() } else { run.pause() }
+                    } label: {
+                        Label(run.isPaused ? "Resume run" : "Pause run",
+                              systemImage: run.isPaused ? "play.fill" : "pause.fill")
+                            .frame(maxWidth: .infinity).padding(.vertical, 10)
+                    }.buttonStyle(.borderedProminent)
+                }
                 Button {
                     if run.isRunning { run.stop() } else { run.start() }
                 } label: {
