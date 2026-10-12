@@ -12,7 +12,12 @@ Keep the phone with you and allow at least 10 seconds of usable GPS readings.
 
 Adjust the target during a jog with the slider or **Faster / Slower** buttons.
 Each press changes the target by 15 seconds per selected unit. Changes apply to
-incoming GPS readings without resetting the run. **Stop run** ends tracking;
+incoming GPS readings without resetting the run. **Pause run** freezes elapsed time
+and warm-up, stops GPS tracking and coaching, and preserves distance and the graph.
+**Resume run** continues the same run, excluding the break from elapsed time,
+warm-up, and coaching cooldowns. Pace settles again with fresh GPS readings;
+the graph shows a gap between segments. **Stop run** ends tracking, including
+while paused;
 starting again resets the totals.
 
 A **Live pace** graph plots smoothed GPS pace against elapsed minutes during a
@@ -101,7 +106,7 @@ hustle,” and “We ordered a jog, not a rocket launch.”
 Distance is an **estimate** from integrating accepted speed readings. Gaps longer
 than eight seconds are excluded, so distance can undercount during outages.
 No route is recorded. Run state exists only in memory; there is no saved history,
-pause button, Apple Watch support, or HealthKit integration.
+Apple Watch support or HealthKit integration.
 
 Speech uses an audio session that requests music ducking and interruption of
 other spoken audio, then releases the session after each cue. Background location
