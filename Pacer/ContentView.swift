@@ -11,7 +11,8 @@ struct ContentView: View {
     private var displayedTarget: Binding<Double> {
         Binding(
             get: { unit.displayedPace(secondsPerKilometre: run.targetPaceSecondsPerKilometre) },
-            set: { run.targetPaceSecondsPerKilometre = unit.secondsPerKilometre(displayedPace: $0) }
+            set: { run.targetPaceSecondsPerKilometre = unit.secondsPerKilometre(
+                displayedPace: unit.roundedTarget(displayedPace: $0)) }
         )
     }
 
@@ -118,6 +119,13 @@ struct ContentView: View {
         .sheet(isPresented: $showingSettings) {
             RunSettingsView(run: run, unit: $unit)
         }
+        .onAppear { roundTarget() }
+        .onChange(of: unit) { _, _ in roundTarget() }
+    }
+
+    private func roundTarget() {
+        let current = unit.displayedPace(secondsPerKilometre: run.targetPaceSecondsPerKilometre)
+        displayedTarget.wrappedValue = unit.roundedTarget(displayedPace: current)
     }
 }
 
