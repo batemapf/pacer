@@ -23,7 +23,8 @@ starting again resets the totals.
 
 A **Live pace** graph plots smoothed GPS pace against elapsed minutes during a
 run and becomes a **Run pace summary** when you stop. Faster pace is higher on
-the graph; labels follow your selected kilometres or miles. Gaps indicate
+the graph; labels follow your selected kilometres or miles. Warm-up readings
+are orange, with a legend identifying the warm-up and subsequent pace. Gaps indicate
 stationary periods or unavailable GPS pace. The graph stays in memory until the
 next run starts or the app closes; it is not saved run history.
 
@@ -37,11 +38,12 @@ Open the gear button for **Settings**:
   Run totals are preserved. The target range is 4:00–12:00/km or 6:30–19:15/mile.
 - **Warm-up:** choose 0–30 whole minutes before starting a run (0/off by default).
   Pace and distance still track, but spoken pace cues wait. At the end,
-  the first reliable estimate shows your difference from target in seconds per
-  selected unit; spoken coaching reads it when enabled and speech is idle.
+  spoken coaching reads your difference from target in seconds per selected
+  unit when a reliable estimate is available, coaching is enabled, and speech is idle.
   Stationary runners get a prompt to start jogging instead of a numeric difference.
-  GPS outages delay the report until the estimate settles again. The report stays
-  on screen until the next run; normal coaching resumes after warm-up.
+  GPS outages delay the spoken report until the estimate settles again. The run
+  screen shows the countdown during warm-up without a completion report afterward;
+  normal coaching resumes after warm-up.
 - **Spoken coaching:** enables or silences audio cues.
 - **Voice:** selects an installed English iOS voice; **Preview voice** auditions
   it. Voices come from the phone, not from bundled recordings. If a saved voice

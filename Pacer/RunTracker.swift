@@ -8,6 +8,7 @@ struct PaceSample: Identifiable {
     let elapsedSeconds: Double
     let secondsPerKilometre: Double
     let segment: Int
+    let isWarmUp: Bool
 }
 
 final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, AVSpeechSynthesizerDelegate {
@@ -20,7 +21,6 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     @Published private(set) var elapsedSeconds = 0.0
     @Published private(set) var status = ""
     @Published private(set) var warmUpRemainingText = ""
-    @Published private(set) var warmUpReport = ""
     @Published var warmUpMinutes = min(30, max(0, UserDefaults.standard.integer(forKey: "warmUpMinutes"))) {
         didSet { UserDefaults.standard.set(warmUpMinutes, forKey: "warmUpMinutes") }
     }
@@ -56,7 +56,6 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     private var engine = PaceEngine()
     private var phrases = CoachingPhrases()
     private var warmUpEndsAt: Date?
-    private var warmUpReportPending = false
     private var warmUpSpeechPending = false
     private var startedAt: Date?
     private var pausedAt: Date?
@@ -95,9 +94,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             pendingStart = false
             let start = Date()
             warmUpEndsAt = warmUpMinutes > 0 ? start.addingTimeInterval(Double(warmUpMinutes * 60)) : nil
-            warmUpReportPending = warmUpEndsAt != nil
             warmUpSpeechPending = warmUpEndsAt != nil
-            warmUpReport = ""
             engine = PaceEngine(warmUpEndsAt: warmUpEndsAt?.timeIntervalSinceReferenceDate)
             lastFix = nil
             startedAt = start
@@ -191,7 +188,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             let remaining = max(0, Int(ceil(end.timeIntervalSinceNow)))
             warmUpRemainingText = remaining > 0
                 ? String(format: "Warm-up: %d:%02d remaining", remaining / 60, remaining % 60)
-                : (warmUpReportPending ? "Warm-up complete. Waiting for a reliable pace estimate." : "")
+                : ""
         } else { warmUpRemainingText = "" }
         if Date().timeIntervalSince(lastFix ?? start) > 8 {
             engine.loseSignal()
@@ -238,11 +235,6 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         let unit = DistanceUnit(rawValue: UserDefaults.standard.string(forKey: "distanceUnit") ?? "") ?? .kilometres
         let report = "Warm-up complete. " + unit.paceDifferenceText(
             pace: engine.paceSecondsPerKilometre, target: targetPaceSecondsPerKilometre)
-        if warmUpReportPending && warmUpComplete && engine.speedMetresPerSecond != nil {
-            warmUpReport = report
-            warmUpReportPending = false
-            warmUpRemainingText = ""
-        }
         if let cue {
             if coachingEnabled && !speech.isSpeaking {
                 if warmUpSpeechPending && warmUpComplete {
@@ -266,7 +258,8 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         lastGraphFix = date
         paceSamples.append(PaceSample(id: paceSamples.count,
                                      elapsedSeconds: max(0, date.timeIntervalSince(start)),
-                                     secondsPerKilometre: pace, segment: paceSegment))
+                                     secondsPerKilometre: pace, segment: paceSegment,
+                                     isWarmUp: warmUpEndsAt.map { date < $0 } ?? false))
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
