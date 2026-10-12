@@ -217,11 +217,6 @@ private struct RunSettingsView: View {
                     }.pickerStyle(.segmented)
                 }
                 Section {
-                    Toggle("Haptic coaching", isOn: $run.hapticCoachingEnabled)
-                } footer: {
-                    Text("Feel pace cues while the app is open, with or without spoken coaching. Haptics may be unavailable when the screen is locked or the app is in the background.")
-                }
-                Section {
                     Stepper(run.warmUpMinutes == 0 ? "Warm-up: Off" : "Warm-up: \(run.warmUpMinutes) minutes",
                             value: $run.warmUpMinutes, in: 0...30)
                         .disabled(run.isRunning)
