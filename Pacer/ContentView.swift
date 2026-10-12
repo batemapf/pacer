@@ -92,9 +92,6 @@ struct ContentView: View {
                     Text(run.warmUpRemainingText).font(.callout).monospacedDigit()
                         .multilineTextAlignment(.center)
                 }
-                if !run.warmUpReport.isEmpty {
-                    Text(run.warmUpReport).font(.callout).multilineTextAlignment(.center)
-                }
                 Text(run.status).font(.callout).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center).frame(minHeight: 44)
                 if run.isRunning {
@@ -147,12 +144,15 @@ private struct PaceGraphView: View {
                     LineMark(x: .value("Elapsed minutes", sample.elapsedSeconds / 60),
                              y: .value("Pace", unit.displayedPace(secondsPerKilometre: sample.secondsPerKilometre)),
                              series: .value("Continuous readings", sample.segment))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(by: .value("Run phase", sample.isWarmUp ? "Warm-up" : "After warm-up"))
                     PointMark(x: .value("Elapsed minutes", sample.elapsedSeconds / 60),
                               y: .value("Pace", unit.displayedPace(secondsPerKilometre: sample.secondsPerKilometre)))
                         .symbolSize(8)
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(by: .value("Run phase", sample.isWarmUp ? "Warm-up" : "After warm-up"))
                 }
+                .chartForegroundStyleScale(domain: ["Warm-up", "After warm-up"],
+                                           range: [Color.orange, Color.accentColor])
+                .chartLegend(samples.contains(where: { $0.isWarmUp }) ? .visible : .hidden)
                 .chartXScale(domain: 0...max(1, max(elapsedSeconds, samples.last?.elapsedSeconds ?? 0) / 60))
                 .chartYScale(domain: .automatic(reversed: true))
                 .chartYAxis {
@@ -221,7 +221,7 @@ private struct RunSettingsView: View {
                             value: $run.warmUpMinutes, in: 0...30)
                         .disabled(run.isRunning)
                 } footer: {
-                    Text("Track pace and distance without coaching for the first 0–30 minutes. After warm-up, show and speak your difference from target when GPS is reliable. Set before starting a run; 0 turns warm-up off.")
+                    Text("Track pace and distance without coaching for the first 0–30 minutes. Warm-up pace is orange on the graph. After warm-up, speak your difference from target when GPS is reliable. Set before starting a run; 0 turns warm-up off.")
                 }
                 Section("Audio") {
                     Toggle("Spoken coaching", isOn: $run.coachingEnabled)
