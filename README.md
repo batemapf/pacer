@@ -10,6 +10,10 @@ Install the private TestFlight build, allow Location access **While Using the Ap
 with **Precise Location** enabled, set your target pace, and tap **Start run** outdoors.
 Keep the phone with you and allow at least 10 seconds of usable GPS readings.
 
+Run controls stay pinned at the bottom of the main screen, keeping **Start / Stop**
+and **Pause / Resume** visible on compact phones such as the iPhone 13 mini at
+normal display zoom while pace details and settings scroll above them.
+
 Adjust the target during a jog with the slider or **Faster / Slower** buttons.
 Targets use round 15-second increments in the selected unit (for example,
 15:00, 15:15, or 15:30/mile). Each press changes the target by 15 seconds per selected unit. Changes apply to
