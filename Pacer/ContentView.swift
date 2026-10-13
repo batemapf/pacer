@@ -94,6 +94,10 @@ struct ContentView: View {
                 }
                 Text(run.status).font(.callout).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center).frame(minHeight: 44)
+            }.padding(24)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 12) {
                 if run.isRunning {
                     Button {
                         if run.isPaused { run.resume() } else { run.pause() }
@@ -110,7 +114,10 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity).padding(.vertical, 10)
                 }.buttonStyle(.borderedProminent)
                     .tint(run.isRunning ? .red : (colorfulAppearance ? .teal : .blue))
-            }.padding(24)
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
         .tint(colorfulAppearance ? .teal : .accentColor)
         .sheet(isPresented: $showingSettings) {
