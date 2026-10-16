@@ -24,6 +24,9 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     @Published var warmUpMinutes = min(30, max(0, UserDefaults.standard.integer(forKey: "warmUpMinutes"))) {
         didSet { UserDefaults.standard.set(warmUpMinutes, forKey: "warmUpMinutes") }
     }
+    @Published var includeWarmUpInOverallPace = UserDefaults.standard.object(forKey: "includeWarmUpInOverallPace") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(includeWarmUpInOverallPace, forKey: "includeWarmUpInOverallPace") }
+    }
     @Published var targetPaceSecondsPerKilometre = 360.0 {
         didSet {
             // Cancel a nudge for the old target. The next GPS fix uses the new target
@@ -46,10 +49,10 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         }
     }
 
-    /// Average over the whole active run, including warm-up and excluding manual pauses.
+    /// Average over the selected portion of the active run, excluding manual pauses.
     var overallPaceSecondsPerKilometre: Double? {
-        guard elapsedSeconds > 0, distanceMetres > 0 else { return nil }
-        return elapsedSeconds / distanceMetres * 1000
+        engine.overallPace(elapsedSeconds: elapsedSeconds, warmUpSeconds: runWarmUpSeconds,
+                           includingWarmUp: includeWarmUpInOverallPace)
     }
 
     func previewVoice() {
@@ -61,6 +64,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     private let speech = AVSpeechSynthesizer()
     private var engine = PaceEngine()
     private var phrases = CoachingPhrases()
+    private var runWarmUpSeconds = 0.0
     private var warmUpEndsAt: Date?
     private var warmUpSpeechPending = false
     private var startedAt: Date?
@@ -99,7 +103,8 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             }
             pendingStart = false
             let start = Date()
-            warmUpEndsAt = warmUpMinutes > 0 ? start.addingTimeInterval(Double(warmUpMinutes * 60)) : nil
+            runWarmUpSeconds = Double(warmUpMinutes * 60)
+            warmUpEndsAt = runWarmUpSeconds > 0 ? start.addingTimeInterval(runWarmUpSeconds) : nil
             warmUpSpeechPending = warmUpEndsAt != nil
             engine = PaceEngine(warmUpEndsAt: warmUpEndsAt?.timeIntervalSinceReferenceDate)
             lastFix = nil

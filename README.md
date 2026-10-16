@@ -15,9 +15,12 @@ and **Pause / Resume** visible on compact phones such as the iPhone 13 mini at
 normal display zoom while pace details and settings scroll above them.
 
 The main screen gives **Current pace** and **Overall pace** equal-sized, labeled
-readings in your selected unit. Current pace uses the rolling GPS estimate described
+readings side by side in your selected unit at standard text sizes, including on
+an iPhone 13 mini at normal display zoom. Larger accessibility text can stack them. Current pace uses the rolling GPS estimate described
 below. Overall pace is elapsed run time divided by recorded distance, including
-warm-up and stationary time but excluding manual pauses. It shows a dash until
+warm-up by default and stationary time, but excluding manual pauses. Turn off
+**Include warm-up in overall pace** to use only time and distance after warm-up.
+It shows a dash until
 both elapsed time and distance are available, stays visible after stopping, and
 resets on the next run. GPS gaps can undercount distance and make overall pace
 appear slower; it is not an average of the current pace readings.
@@ -56,13 +59,19 @@ Open the gear button for **Settings**:
   GPS outages delay the spoken report until the estimate settles again. The run
   screen shows the countdown during warm-up without a completion report afterward;
   normal coaching resumes after warm-up.
+- **Include warm-up in overall pace:** on by default to preserve the whole-run
+  average. Turn it off to exclude warm-up time and distance; overall pace shows
+  a dash until there is time and recorded distance after warm-up. This preference
+  applies immediately, including during a run or to the stopped summary. Total
+  time, total distance, coaching, and the graph still include warm-up as before.
 - **Spoken coaching:** enables or silences audio cues.
 - **Voice:** selects an installed English iOS voice; **Preview voice** auditions
   it. Voices come from the phone, not from bundled recordings. If a saved voice
   becomes unavailable, coaching falls back to the default US English voice.
 - **Change app:** submits a suggestion directly from the app.
 
-Appearance, units, warm-up duration, spoken coaching preferences, and voice selection are remembered between launches.
+Appearance, units, warm-up duration, warm-up inclusion in overall pace, spoken coaching
+preferences, and voice selection are remembered between launches.
 The app requests music ducking while it speaks and releases the audio session
 after each cue. Its icon and installed name are **Speed Up or Slow Down**.
 
