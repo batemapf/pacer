@@ -21,7 +21,8 @@ class ReleaseChangeTests(unittest.TestCase):
 
     def test_assets_project_and_app_inputs_upload(self):
         for path in ['Pacer/Assets.xcassets/AppIcon.appiconset/AppIcon.png',
-                     'Pacer.xcodeproj/project.pbxproj', 'Sources/PacerCore/PaceEngine.swift',
+                     'Pacer.xcodeproj/project.pbxproj', 'PacerWidgets/PaceActivity.swift',
+                     'PacerWidgets/Info.plist', 'Sources/PacerCore/PaceEngine.swift',
                      'Package.swift']:
             self.assertTrue(changes.affects_release(path), path)
 

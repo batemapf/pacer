@@ -166,9 +166,11 @@ The improvement loop is:
 5. The workflow opens a PR for owner review. It never merges automatically.
 6. Merging an app change into `main` starts private TestFlight delivery.
 
-The agent initially works only on existing app Swift files, core code, tests, and
-README. Signing, dependencies, privacy declarations, project files, and automation
-remain outside its permitted edit scope. See [APP-CHANGE-AGENT.md](APP-CHANGE-AGENT.md)
+The agent can add app/widget Swift files and property lists, update core code and
+tests, and configure Xcode targets and shared schemes for features such as Live
+Activities. Credentials, signing automation, workflows, dependencies, and new
+permissions remain outside its edit scope. Extension distribution provisioning
+requires separate owner setup before release. See [APP-CHANGE-AGENT.md](APP-CHANGE-AGENT.md)
 for credentials, limits, and recovery.
 
 Anonymous submission uses a **dedicated repository-scoped PAT with Issues

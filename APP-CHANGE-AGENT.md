@@ -15,7 +15,7 @@ The CLI is pinned to 0.162.1 and runs with the workspace permission profile and 
 
 ## Initial scope
 
-Only existing `Pacer/ContentView.swift`, `Pacer/RunTracker.swift`, `Pacer/PacerApp.swift`, `Sources/PacerCore/*.swift`, `Tests/PacerCoreTests/*.swift`, and `README.md` may change. Changes to app identity, privacy permissions, dependencies, signing, project files, workflows, scripts, or policy need owner implementation. The independent gate rejects symlinks, new files, more than 10 changed files, or a patch over 200 KB. Read `.github/codex/change-policy.md` for the agent's product rules.
+App and widget Swift files and property lists under `Pacer/` and `PacerWidgets/`, core Swift files, Swift tests, README, the Xcode project, and shared schemes may be added or edited. This permits Live Activity extension targets and embedding. App identity, signing settings, privacy permissions, dependencies, release automation, workflows, scripts, and policy remain protected by the agent instructions. The independent path gate rejects files outside those locations, symlinks, more than 10 changed files, and patches over 200 KB. New files are included in exported patches and independently applied and built. New extensions require their own distribution App ID/profile and release signing support before TestFlight delivery; the agent must call this out in its PR. Read `.github/codex/change-policy.md` for the product rules.
 
 ## Usage and recovery
 

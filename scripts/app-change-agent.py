@@ -30,8 +30,13 @@ def output(name, value):
 
 
 def allowed_path(path):
-    return path in {'README.md', 'Pacer/ContentView.swift', 'Pacer/RunTracker.swift', 'Pacer/PacerApp.swift'} or bool(
-        re.fullmatch(r'(Sources/PacerCore|Tests/PacerCoreTests)/[A-Za-z0-9_-]+\.swift', path))
+    parts = Path(path).parts
+    if not parts or any(part in ('.', '..') or part.startswith('.') for part in parts):
+        return False
+    return path in {'README.md', 'Pacer.xcodeproj/project.pbxproj'} or bool(
+        re.fullmatch(r'(Pacer|PacerWidgets|Sources/PacerCore|Tests/PacerCoreTests)/'
+                     r'(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+\.(swift|plist|entitlements)', path)
+        or re.fullmatch(r'Pacer.xcodeproj/xcshareddata/xcschemes/[A-Za-z0-9_-]+\.xcscheme', path))
 
 
 def prepare():
@@ -88,9 +93,10 @@ def finalize():
         raise RuntimeError('Unaccepted requests must not change files.')
     if result['status'] == 'accepted' and not paths:
         raise RuntimeError('Accepted request produced no change.')
-    for path in paths:
-        if not command('git', 'ls-files', '--', path):
-            raise RuntimeError('Only existing tracked files may be changed.')
+    # Include new source/configuration files in the exported patch. Untracked
+    # files are otherwise silently omitted by git diff.
+    if paths:
+        subprocess.run(['git', 'add', '--intent-to-add', '--', *paths], check=True)
     patch = subprocess.check_output(['git', 'diff', '--binary', 'HEAD'])
     if len(patch) > 200_000 or len(paths) > 10:
         raise RuntimeError('Change exceeds the automatic proposal size limit.')
@@ -108,9 +114,9 @@ def apply_proposal(bundle):
     if not re.fullmatch('[a-f0-9]{40}', base):
         raise RuntimeError('Invalid base commit.')
     command('git', 'checkout', '--detach', base)
-    subprocess.run(['git', 'apply', '--check', str(bundle / 'change.patch')], check=True)
-    subprocess.run(['git', 'apply', str(bundle / 'change.patch')], check=True)
-    paths = command('git', 'diff', '--name-only').splitlines()
+    subprocess.run(['git', 'apply', '--check', '--index', str(bundle / 'change.patch')], check=True)
+    subprocess.run(['git', 'apply', '--index', str(bundle / 'change.patch')], check=True)
+    paths = command('git', 'diff', '--cached', '--name-only').splitlines()
     if not paths or len(paths) > 10 or any(not allowed_path(path) for path in paths):
         raise RuntimeError('Proposal is outside the allowed scope.')
     if (bundle / 'change.patch').stat().st_size > 200_000:

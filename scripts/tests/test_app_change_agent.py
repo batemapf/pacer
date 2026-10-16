@@ -15,13 +15,15 @@ spec.loader.exec_module(agent)
 class AgentBoundaryTests(unittest.TestCase):
     def test_protected_files_rejected(self):
         for path in ['.github/workflows/check.yml', 'scripts/publish-testflight.sh',
-                     'Pacer/Info.plist', 'Pacer.xcodeproj/project.pbxproj', 'Package.swift',
+                     'PacerWidgets/../secrets.swift', 'PacerWidgets/.hidden.swift', 'Package.swift',
                      'Sources/PacerCore/../../secrets.swift']:
             self.assertFalse(agent.allowed_path(path), path)
 
     def test_existing_app_files_allowed(self):
         for path in ['Pacer/ContentView.swift', 'Sources/PacerCore/PaceEngine.swift',
-                     'Tests/PacerCoreTests/PaceEngineTests.swift', 'README.md']:
+                     'Tests/PacerCoreTests/PaceEngineTests.swift', 'README.md',
+                     'PacerWidgets/PaceActivity.swift', 'PacerWidgets/Info.plist',
+                     'Pacer/Info.plist', 'Pacer.xcodeproj/project.pbxproj']:
             self.assertTrue(agent.allowed_path(path), path)
 
     def test_nonmaintainer_cannot_trigger(self):
@@ -84,12 +86,15 @@ class AgentBoundaryTests(unittest.TestCase):
         self.assertIn('--slurp', command.call_args.args)
 
     def test_patch_to_protected_file_is_rejected(self):
-        self.apply_patch_fixture('Pacer/Info.plist', rejected=True)
+        self.apply_patch_fixture('.github/workflows/check.yml', rejected=True)
 
     def test_ordinary_readme_patch_is_accepted(self):
         self.apply_patch_fixture('README.md', rejected=False)
 
-    def apply_patch_fixture(self, name, rejected):
+    def test_new_widget_file_survives_export_and_apply(self):
+        self.apply_patch_fixture('PacerWidgets/Activity.swift', rejected=False, new=True)
+
+    def apply_patch_fixture(self, name, rejected, new=False):
         old_cwd = os.getcwd()
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
@@ -98,13 +103,17 @@ class AgentBoundaryTests(unittest.TestCase):
                 subprocess.run(['git', 'init', '-q'], check=True)
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text('original\n')
+                (root / 'baseline.txt').write_text('baseline\n')
+                if not new:
+                    path.write_text('original\n')
                 subprocess.run(['git', 'add', '.'], check=True)
                 subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-qm', 'fixture'], check=True)
                 base = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
                 path.write_text('changed\n')
+                if new:
+                    subprocess.run(['git', 'add', '--intent-to-add', '--', name], check=True)
                 delta = subprocess.check_output(['git', 'diff', '--binary'])
-                subprocess.run(['git', 'checkout', '--', name], check=True)
+                subprocess.run(['git', 'reset', '--hard', '-q'], check=True)
                 bundle = root / 'proposal'
                 bundle.mkdir()
                 (bundle / 'base.txt').write_text(base)
@@ -113,6 +122,7 @@ class AgentBoundaryTests(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, 'scope'):
                         agent.apply_proposal(bundle)
                 else:
-                    self.assertEqual(agent.apply_proposal(bundle), ['README.md'])
+                    self.assertEqual(agent.apply_proposal(bundle), [name])
+                    self.assertEqual(path.read_text(), 'changed\n')
             finally:
                 os.chdir(old_cwd)

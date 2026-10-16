@@ -7,7 +7,7 @@ import subprocess
 
 
 def affects_release(path):
-    return path.startswith(('Pacer/', 'Sources/', 'Pacer.xcodeproj/')) or path in {
+    return path.startswith(('Pacer/', 'PacerWidgets/', 'Sources/', 'Pacer.xcodeproj/')) or path in {
         'Package.swift', 'Package.resolved',
     }
 
