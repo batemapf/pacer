@@ -57,6 +57,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         speak("Looking good! Keep this pace. Your future self is already bragging.")
     }
 
+    private let liveActivity = RunLiveActivity()
     private let location = CLLocationManager()
     private let speech = AVSpeechSynthesizer()
     private var engine = PaceEngine()
@@ -116,6 +117,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             paceSecondsPerKilometre = nil
             elapsedText = "0:00"
             isRunning = true
+            liveActivity.start()
             status = "Acquiring GPS…"
             tick()
             location.startUpdatingLocation()
@@ -142,6 +144,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         speech.stopSpeaking(at: .immediate)
         releaseAudio()
         status = "Run paused. Tap Resume run to continue."
+        updateLiveActivity(force: true)
     }
 
     func resume() {
@@ -164,6 +167,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         lastFix = now
         acceptingFixesAfter = now
         status = "Acquiring GPS…"
+        updateLiveActivity(force: true)
         location.startUpdatingLocation()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             self?.tick()
@@ -183,6 +187,12 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         speech.stopSpeaking(at: .immediate)
         releaseAudio()
         status = "Run ended."
+        liveActivity.update(pace: nil, samples: paceSamples, elapsedSeconds: elapsedSeconds, paused: false, force: true, ended: true)
+    }
+
+    func updateLiveActivity(force: Bool = false) {
+        liveActivity.update(pace: paceSecondsPerKilometre, samples: paceSamples, elapsedSeconds: elapsedSeconds,
+                            paused: isPaused, force: force)
     }
 
     private func tick() {
@@ -196,6 +206,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
                 ? String(format: "Warm-up: %d:%02d remaining", remaining / 60, remaining % 60)
                 : ""
         } else { warmUpRemainingText = "" }
+        defer { updateLiveActivity() }
         if Date().timeIntervalSince(lastFix ?? start) > 8 {
             engine.loseSignal()
             paceSecondsPerKilometre = nil
@@ -230,6 +241,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         distanceMetres = engine.distanceMetres
         paceSecondsPerKilometre = engine.paceSecondsPerKilometre
         recordPace(at: fix.timestamp)
+        updateLiveActivity()
         if engine.speedMetresPerSecond == nil {
             status = "GPS acquired; settling the pace estimate."
         } else if engine.paceSecondsPerKilometre == nil {
@@ -278,6 +290,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             paceSecondsPerKilometre = nil
             recordPace(at: Date())
             status = "GPS temporarily unavailable. Coaching paused."
+            updateLiveActivity(force: true)
         }
     }
 
