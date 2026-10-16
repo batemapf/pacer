@@ -46,6 +46,12 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         }
     }
 
+    /// Average over the whole active run, including warm-up and excluding manual pauses.
+    var overallPaceSecondsPerKilometre: Double? {
+        guard elapsedSeconds > 0, distanceMetres > 0 else { return nil }
+        return elapsedSeconds / distanceMetres * 1000
+    }
+
     func previewVoice() {
         speech.stopSpeaking(at: .immediate)
         speak("Looking good! Keep this pace. Your future self is already bragging.")
