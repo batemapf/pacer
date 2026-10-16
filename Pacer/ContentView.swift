@@ -34,11 +34,9 @@ struct ContentView: View {
                             .frame(minWidth: 44, minHeight: 44)
                     }.accessibilityLabel("Settings")
                 }
-                VStack(spacing: 8) {
-                    Text(unit.paceText(secondsPerKilometre: run.paceSecondsPerKilometre))
-                        .font(.system(size: 64, weight: .semibold, design: .rounded)).monospacedDigit()
-                        .accessibilityLabel("Current pace \(unit.paceText(secondsPerKilometre: run.paceSecondsPerKilometre)), \(unit.paceDescription)")
-                    Text(unit.paceDescription).foregroundStyle(.secondary)
+                VStack(spacing: 20) {
+                    paceReading("Current pace", secondsPerKilometre: run.paceSecondsPerKilometre)
+                    paceReading("Overall pace", secondsPerKilometre: run.overallPaceSecondsPerKilometre)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(colorfulAppearance ? 16 : 0)
@@ -125,6 +123,20 @@ struct ContentView: View {
         }
         .onAppear { roundTarget() }
         .onChange(of: unit) { _, _ in roundTarget() }
+    }
+
+    private func paceReading(_ title: String, secondsPerKilometre: Double?) -> some View {
+        VStack(spacing: 8) {
+            Text(title).font(.headline)
+            Text(unit.paceText(secondsPerKilometre: secondsPerKilometre))
+                .font(.system(size: 64, weight: .semibold, design: .rounded)).monospacedDigit()
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+            Text(unit.paceDescription).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title) \(unit.paceText(secondsPerKilometre: secondsPerKilometre)), \(unit.paceDescription)")
     }
 
     private func roundTarget() {

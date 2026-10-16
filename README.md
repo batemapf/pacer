@@ -14,6 +14,14 @@ Run controls stay pinned at the bottom of the main screen, keeping **Start / Sto
 and **Pause / Resume** visible on compact phones such as the iPhone 13 mini at
 normal display zoom while pace details and settings scroll above them.
 
+The main screen gives **Current pace** and **Overall pace** equal-sized, labeled
+readings in your selected unit. Current pace uses the rolling GPS estimate described
+below. Overall pace is elapsed run time divided by recorded distance, including
+warm-up and stationary time but excluding manual pauses. It shows a dash until
+both elapsed time and distance are available, stays visible after stopping, and
+resets on the next run. GPS gaps can undercount distance and make overall pace
+appear slower; it is not an average of the current pace readings.
+
 Adjust the target during a jog with the slider or **Faster / Slower** buttons.
 Targets use round 15-second increments in the selected unit (for example,
 15:00, 15:15, or 15:30/mile). Each press changes the target by 15 seconds per selected unit. Changes apply to
