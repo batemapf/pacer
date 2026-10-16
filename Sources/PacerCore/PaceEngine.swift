@@ -27,6 +27,7 @@ public struct PaceEngine {
     private var samples: [Sample] = []
     private var lastCueTime: TimeInterval?
     public private(set) var distanceMetres = 0.0
+    public private(set) var distanceAfterWarmUpMetres = 0.0
     public private(set) var speedMetresPerSecond: Double?
 
     private let warmUpEndsAt: TimeInterval?
@@ -40,6 +41,15 @@ public struct PaceEngine {
         return 1000 / speed
     }
 
+    /// Active elapsed time and configured warm-up duration must exclude manual pauses.
+    public func overallPace(elapsedSeconds: Double, warmUpSeconds: Double,
+                            includingWarmUp: Bool) -> Double? {
+        let seconds = includingWarmUp ? elapsedSeconds : max(0, elapsedSeconds - warmUpSeconds)
+        let distance = includingWarmUp ? distanceMetres : distanceAfterWarmUpMetres
+        guard seconds > 0, distance > 0 else { return nil }
+        return seconds / distance * 1000
+    }
+
     /// Call only with GPS samples that have usable accuracy.
     @discardableResult
     public mutating func ingest(speed: Double, at time: TimeInterval,
@@ -51,6 +61,11 @@ public struct PaceEngine {
             guard delta >= 1 else { return nil }
             if delta <= 8 {
                 distanceMetres += (previous.speed + speed) / 2 * delta
+                // Split an interval crossing warm-up's end using the same linear
+                // speed interpolation as the total-distance trapezoid.
+                let intervalStart = min(time, max(previous.time, warmUpEndsAt ?? previous.time))
+                let startSpeed = previous.speed + (speed - previous.speed) * (intervalStart - previous.time) / delta
+                distanceAfterWarmUpMetres += (startSpeed + speed) / 2 * (time - intervalStart)
             } else {
                 // Reacquire a stable estimate after an outage; never integrate the gap.
                 samples.removeAll()

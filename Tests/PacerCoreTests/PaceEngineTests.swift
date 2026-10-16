@@ -9,6 +9,52 @@ final class PaceEngineTests: XCTestCase {
         }
     }
 
+    func testOverallPaceCanIncludeOrExcludeWarmUp() {
+        var engine = PaceEngine(warmUpEndsAt: 60)
+        _ = feed(&engine, speed: 2, through: 60)
+        XCTAssertNil(engine.overallPace(elapsedSeconds: 60, warmUpSeconds: 60, includingWarmUp: false))
+        _ = feed(&engine, speed: 4, from: 61, through: 120)
+        XCTAssertEqual(engine.overallPace(elapsedSeconds: 120, warmUpSeconds: 60, includingWarmUp: true)!,
+                       120 / 359.0 * 1000, accuracy: 0.001)
+        XCTAssertEqual(engine.overallPace(elapsedSeconds: 120, warmUpSeconds: 60, includingWarmUp: false)!,
+                       60 / 239.0 * 1000, accuracy: 0.001)
+        // The preference can be switched back without losing either total.
+        XCTAssertEqual(engine.distanceMetres, 359, accuracy: 0.001)
+    }
+
+    func testWarmUpBoundarySplitsDistanceUsingInterpolatedSpeed() {
+        var engine = PaceEngine(warmUpEndsAt: 5)
+        engine.ingest(speed: 2, at: 3, targetPace: 360)
+        engine.ingest(speed: 6, at: 7, targetPace: 360)
+        XCTAssertEqual(engine.distanceMetres, 16, accuracy: 0.001)
+        XCTAssertEqual(engine.distanceAfterWarmUpMetres, 10, accuracy: 0.001)
+    }
+
+    func testOverallPaceWithoutWarmUpAndWithoutDistance() {
+        var engine = PaceEngine()
+        XCTAssertNil(engine.overallPace(elapsedSeconds: 0, warmUpSeconds: 0, includingWarmUp: true))
+        _ = feed(&engine, speed: 2)
+        XCTAssertEqual(engine.overallPace(elapsedSeconds: 10, warmUpSeconds: 0, includingWarmUp: false),
+                       engine.overallPace(elapsedSeconds: 10, warmUpSeconds: 0, includingWarmUp: true))
+        engine = PaceEngine(warmUpEndsAt: 5)
+        _ = feed(&engine, speed: 0)
+        XCTAssertNil(engine.overallPace(elapsedSeconds: 10, warmUpSeconds: 5, includingWarmUp: false))
+    }
+
+    func testPostWarmUpDistanceExcludesSignalAndPauseGaps() {
+        var engine = PaceEngine(warmUpEndsAt: 5)
+        _ = feed(&engine, speed: 2, through: 10)
+        engine.loseSignal() // Manual pauses also discard the previous fix.
+        _ = feed(&engine, speed: 2, from: 11, through: 21)
+        _ = feed(&engine, speed: 2, from: 40, through: 50)
+        XCTAssertEqual(engine.distanceAfterWarmUpMetres, 50, accuracy: 0.001)
+        XCTAssertEqual(engine.overallPace(elapsedSeconds: 50, warmUpSeconds: 5, includingWarmUp: false)!,
+                       900, accuracy: 0.001)
+        engine = PaceEngine(warmUpEndsAt: 5)
+        XCTAssertNil(engine.overallPace(elapsedSeconds: 0, warmUpSeconds: 5, includingWarmUp: false))
+        XCTAssertEqual(engine.distanceAfterWarmUpMetres, 0)
+    }
+
     func testConfiguredWarmUpTracksWithoutConsumingCooldown() {
         var engine = PaceEngine(warmUpEndsAt: 60)
         XCTAssertTrue(feed(&engine, speed: 2, through: 59).isEmpty)
