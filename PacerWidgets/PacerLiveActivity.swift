@@ -12,27 +12,25 @@ struct PacerLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: RunActivityAttributes.self) { context in
             VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Label("Speed Up or Slow Down", systemImage: "figure.run")
-                        .font(.caption)
-                    Spacer()
-                    Text(status(context)).font(.caption)
-                }
+                Label(indicator(context).text, systemImage: indicator(context).symbol)
+                    .font(.headline)
                 HStack(alignment: .firstTextBaseline) {
                     Text(context.isStale ? "—" : context.state.paceText)
                         .font(.largeTitle.bold()).monospacedDigit()
                     Text(context.state.unitText).font(.caption)
                     Spacer()
-                    Text("Current pace").font(.caption)
                 }
                 PaceHistory(state: context.state)
             }
             .padding()
-            .activityBackgroundTint(Color(.systemBackground))
+            .foregroundStyle(.white)
+            .activityBackgroundTint(indicator(context).color)
+            .activitySystemActionForegroundColor(.white)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Label("Pace", systemImage: "figure.run")
+                    Image(systemName: indicator(context).symbol)
+                        .foregroundStyle(indicator(context).tint)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     Text("\(context.isStale ? "—" : context.state.paceText) \(context.state.unitText)")
@@ -40,25 +38,48 @@ struct PacerLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(status(context)).font(.caption)
+                        Label(indicator(context).text, systemImage: indicator(context).symbol)
+                            .font(.headline)
+                            .foregroundStyle(indicator(context).tint)
                         PaceHistory(state: context.state)
                     }
                 }
             } compactLeading: {
-                Image(systemName: context.state.paused ? "pause.fill" : "figure.run")
+                Image(systemName: indicator(context).symbol)
+                    .foregroundStyle(indicator(context).tint)
+                    .accessibilityLabel(indicator(context).text)
             } compactTrailing: {
                 Text(context.isStale ? "—" : context.state.paceText).monospacedDigit()
             } minimal: {
-                Image(systemName: context.state.paused ? "pause.fill" : "figure.run")
+                Image(systemName: indicator(context).symbol)
+                    .foregroundStyle(indicator(context).tint)
+                    .accessibilityLabel(indicator(context).text)
             }
         }
     }
 
-    private func status(_ context: ActivityViewContext<RunActivityAttributes>) -> String {
-        if context.state.ended { return "Run ended" }
-        if context.state.paused { return "Paused" }
-        if context.isStale { return "Waiting for update" }
-        return context.state.pace == nil ? "Waiting for pace" : "Running"
+    // Use dark, saturated backgrounds with white text on the Lock Screen.
+    // Symbols and short labels convey direction independently of color.
+    private func indicator(_ context: ActivityViewContext<RunActivityAttributes>)
+        -> (text: String, symbol: String, color: Color, tint: Color) {
+        let neutral = Color(red: 0.22, green: 0.25, blue: 0.29)
+        if context.state.ended { return ("Run ended", "stop.fill", neutral, .white) }
+        if context.state.paused { return ("Paused", "pause.fill", neutral, .white) }
+        if context.isStale { return ("Updating…", "arrow.clockwise", neutral, .white) }
+        if context.state.guidance == .warmUp { return ("Warm-up", "figure.walk", neutral, .white) }
+        guard let pace = context.state.pace, pace.isFinite, pace > 0 else {
+            return ("Finding pace…", "location", neutral, .white)
+        }
+        switch context.state.guidance {
+        case .speedUp:
+            return ("Speed up", "arrow.up", Color(red: 0.60, green: 0.25, blue: 0.02), .orange)
+        case .slowDown:
+            return ("Slow down", "arrow.down", Color(red: 0.10, green: 0.32, blue: 0.65), .cyan)
+        case .onPace:
+            return ("On pace", "checkmark", Color(red: 0.08, green: 0.40, blue: 0.24), .green)
+        default:
+            return ("Running", "figure.run", neutral, .white)
+        }
     }
 }
 
@@ -68,8 +89,8 @@ private struct PaceHistory: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             if state.points.isEmpty {
-                Text("Pace graph appears after GPS settles.")
-                    .font(.caption).frame(height: 50)
+                Color.clear.frame(height: 50)
+                    .accessibilityLabel("Waiting for pace history")
             } else {
                 Chart(state.points) { point in
                     LineMark(x: .value("Run seconds", point.second),
@@ -84,8 +105,6 @@ private struct PaceHistory: View {
                 .frame(height: 50)
                 .accessibilityLabel("Recent pace trend. Faster pace is higher. Gaps mark pauses or unavailable pace.")
             }
-            Text("Recent pace · up to 5 min · faster ↑")
-                .font(.caption2).foregroundStyle(.secondary)
         }
     }
 }
