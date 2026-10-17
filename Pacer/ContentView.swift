@@ -128,7 +128,10 @@ struct ContentView: View {
             RunSettingsView(run: run, unit: $unit)
         }
         .onAppear { roundTarget() }
-        .onChange(of: unit) { _, _ in roundTarget() }
+        .onChange(of: unit) { _, _ in
+            roundTarget()
+            run.updateLiveActivity(force: true)
+        }
     }
 
     private func paceReading(_ title: String, secondsPerKilometre: Double?) -> some View {
