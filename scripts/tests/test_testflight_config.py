@@ -14,11 +14,11 @@ VALIDATE = re.findall(r"python3 - <<'PY'\n(.*?)\nPY", SCRIPT.read_text(), re.S)[
 
 
 class ProfileValidationTests(unittest.TestCase):
-    def run_profile(self, changes=None, identity=True):
+    def run_profile(self, changes=None, identity=True, widget_changes=None):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / 'Pacer').mkdir()
-            (root / 'Pacer/Info.plist').write_bytes(plistlib.dumps({'CFBundleVersion': '1'}))
+            (root / 'Pacer/Info.plist').write_bytes(plistlib.dumps({'CFBundleVersion': '1', 'CFBundleShortVersionString': '1.0'}))
             certificate = b'synthetic certificate fixture, not a signing asset'
             fingerprint = hashlib.sha1(certificate).hexdigest().upper()
             profile = {
@@ -33,6 +33,15 @@ class ProfileValidationTests(unittest.TestCase):
                 'ExpirationDate': datetime.datetime(2099, 1, 1),
                 'DeveloperCertificates': [certificate],
             }
+            import copy
+            widget = copy.deepcopy(profile)
+            widget['UUID'] = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+            widget['Entitlements']['application-identifier'] += '.widgets'
+            if widget_changes:
+                widget_changes(widget)
+            (root / 'widget-profile.plist').write_bytes(plistlib.dumps(widget))
+            (root / 'PacerWidgets').mkdir()
+            (root / 'PacerWidgets/Info.plist').write_bytes(plistlib.dumps({}))
             if changes:
                 changes(profile)
             (root / 'profile.plist').write_bytes(plistlib.dumps(profile))
@@ -48,11 +57,33 @@ class ProfileValidationTests(unittest.TestCase):
                 self.assertEqual(exported['signingCertificate'], fingerprint)
                 self.assertEqual(exported['provisioningProfiles']['com.example.pacer'], profile['UUID'])
                 self.assertEqual(info['CFBundleVersion'], '42.2')
+                self.assertEqual(exported['provisioningProfiles']['com.example.pacer.widgets'], widget['UUID'])
+                widget_info = plistlib.loads((root / 'PacerWidgets/Info.plist').read_bytes())
+                self.assertEqual(widget_info['CFBundleVersion'], info['CFBundleVersion'])
+                self.assertEqual(widget_info['CFBundleShortVersionString'], '1.0')
+                self.assertNotIn('AppChangeGitHubToken', widget_info)
+
                 self.assertEqual(info['AppChangeGitHubToken'], 'synthetic-issue-only-token')
             return result
 
     def test_matching_profile_exports_manual_signing_and_unique_build(self):
         self.assertEqual(self.run_profile().returncode, 0)
+
+    def test_wrong_widget_identifier_is_rejected(self):
+        result = self.run_profile(widget_changes=lambda p: p['Entitlements'].update(
+            {'application-identifier': 'ABCDEF1234.com.other.widgets'}))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('widget-profile.plist', result.stderr)
+
+    def test_expired_widget_profile_is_rejected(self):
+        result = self.run_profile(widget_changes=lambda p: p.update(ExpirationDate=datetime.datetime(2000, 1, 1)))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('expired', result.stderr)
+
+    def test_widget_certificate_mismatch_is_rejected(self):
+        result = self.run_profile(widget_changes=lambda p: p.update(DeveloperCertificates=[b'other certificate']))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('certificate/private-key', result.stderr)
 
     def test_wrong_team_is_rejected(self):
         r = self.run_profile(lambda p: p.update(TeamIdentifier=['OTHERTEAM1']))

@@ -115,3 +115,13 @@ Also add `APP_CHANGE_GH_TOKEN` as a repository or `testflight` environment Actio
 - `feedback-smoke-test.yml`: manual dispatch only. Exercises issue creation and closes its test issue; never builds, signs, or exports an app.
 
 The main/PR CI concurrency group cancels older runs for the same event and ref. Upload jobs remain serialized. A cancellation cannot retract a build Apple has already accepted; check TestFlight separately for processing and availability.
+
+## Live Activity extension signing
+
+The widget extension uses the app bundle ID plus `.widgets` (distribution:
+`org.rollett.pacer.widgets`). Add its App Store distribution profile as the
+`testflight` environment secret `IOS_WIDGET_APP_STORE_PROFILE_BASE64`. Use the
+same distribution certificate as the app. See issue #35 for account-owner steps.
+The pipeline validates both profiles and signs each target separately, includes
+both profiles in export options, and synchronizes app/extension versions.
+Local builds retain automatic signing with the widget ID derived from the app ID.
