@@ -72,6 +72,8 @@ struct ContentView: View {
                 VStack {
                     Text("Target: \(unit.paceText(secondsPerKilometre: run.targetPaceSecondsPerKilometre)) / \(unit.symbol)")
                         .font(.headline).monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                     Slider(value: displayedTarget, in: unit.targetRange, step: 15)
                         .accessibilityLabel("Target pace, \(unit.paceDescription)")
                     HStack {
@@ -138,7 +140,10 @@ struct ContentView: View {
                 .font(.system(size: 48, weight: .semibold, design: .rounded)).monospacedDigit()
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
-            Text(unit.paceDescription).font(.caption).foregroundStyle(.secondary)
+            Text("min/\(unit.symbol)")
+                .font(.caption).foregroundStyle(.secondary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
