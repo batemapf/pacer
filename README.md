@@ -43,6 +43,23 @@ are orange, with a legend identifying the warm-up and subsequent pace. Gaps indi
 stationary periods or unavailable GPS pace. The graph stays in memory until the
 next run starts or the app closes; it is not saved run history.
 
+Starting a run also starts a **Live Activity**, when allowed in iOS Settings.
+The Lock Screen and expanded Dynamic Island show current pace in your selected
+unit and up to five minutes of recent pace (faster is higher; gaps preserve pauses
+and unavailable GPS). Compact Dynamic Island shows pace. Updates are limited to
+once every five seconds; stale readings show a dash. Pausing shows **Paused**,
+and stopping removes the activity. iOS controls update delivery; this is not a
+saved run or a Home Screen widget. After termination, any remaining activity
+becomes stale and is cleared on the next app launch.
+
+The Pacer scheme builds and embeds **PacerWidgets**. Before distributing, the
+owner must register/provision the extension identifier com.batemapf.pacer.widgets
+with the existing team and include it in distribution signing/export setup.
+Existing app signing and release automation are unchanged.
+On a device, verify Live Activities enabled/disabled, Lock Screen and all Dynamic
+Island sizes, selected units, GPS loss/recovery, pause/resume, stop/restart, and
+stale display after termination.
+
 Open the gear button for **Settings**:
 
 - **Colorful appearance:** optionally adds teal, orange, and purple accents and
