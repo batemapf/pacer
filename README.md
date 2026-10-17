@@ -47,7 +47,13 @@ Starting a run also starts a **Live Activity**, when allowed in iOS Settings.
 The Lock Screen and expanded Dynamic Island show current pace in your selected
 unit and up to five minutes of recent pace (faster is higher; gaps preserve pauses
 and unavailable GPS). Compact Dynamic Island shows pace. Updates are limited to
-once every five seconds; stale readings show a dash. Pausing shows **Paused**,
+once every five seconds; stale readings show a dash. A short label and symbol
+show **Speed up** (orange/up arrow), **Slow down** (blue/down arrow), or **On pace**
+(green/checkmark), with a matching Lock Screen background. These use the same
+±20 sec/km tolerance as spoken coaching, independent of whether audio is enabled.
+Warm-up, paused, stale, and unavailable pace states use a neutral background.
+The layout keeps the pace and graph while removing repeated descriptive text.
+Pausing shows **Paused**,
 and stopping removes the activity. iOS controls update delivery; this is not a
 saved run or a Home Screen widget. After termination, any remaining activity
 becomes stale and is cleared on the next app launch.

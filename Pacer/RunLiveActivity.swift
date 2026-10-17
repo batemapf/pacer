@@ -27,6 +27,7 @@ final class RunLiveActivity {
     }
 
     func update(pace: Double?, samples: [PaceSample], elapsedSeconds: Double, paused: Bool,
+                guidance: RunActivityAttributes.Guidance? = nil,
                 force: Bool = false, ended: Bool = false) {
         guard let activity, force || Date().timeIntervalSince(lastUpdate) >= 5 else { return }
         lastUpdate = Date()
@@ -43,7 +44,7 @@ final class RunLiveActivity {
         }
         let state = RunActivityAttributes.ContentState(pace: pace,
             usesMiles: UserDefaults.standard.string(forKey: "distanceUnit") == "miles",
-            paused: paused, ended: ended, points: points.reversed())
+            paused: paused, ended: ended, points: points.reversed(), guidance: guidance)
         let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(10))
         let previous = pendingUpdate
         pendingUpdate = Task {
