@@ -52,7 +52,10 @@ show **Speed up** (orange/up arrow), **Slow down** (blue/down arrow), or **On pa
 (green/checkmark), with a matching Lock Screen background. These use the same
 ±20 sec/km tolerance as spoken coaching, independent of whether audio is enabled.
 Warm-up, paused, stale, and unavailable pace states use a neutral background.
-The layout keeps the pace and graph while removing repeated descriptive text.
+The recent pace graph has a labelled pace range in the selected min/km or
+min/mile unit, elapsed-time endpoints (m:ss), and a faster-up cue. Its vertical
+scale follows the recent readings, including while paused; it is not fixed
+between updates. With no readings, it displays “Waiting for pace history”.
 Pausing shows **Paused**,
 and stopping removes the activity. iOS controls update delivery; this is not a
 saved run or a Home Screen widget. After termination, any remaining activity
