@@ -24,6 +24,68 @@ def issue_comments(repo, number):
             for page in pages for comment in page]
 
 
+def prepare_images(request, root):
+    """Decode bounded app attachments; never fetch URLs supplied by an issue."""
+    import base64
+    import hashlib
+    import io
+    import warnings
+    matches = re.findall(r'<!-- app-change-images:(\{[^\n]+\}) -->', request['body'])
+    if not matches:
+        return []
+    if len(matches) != 1:
+        raise RuntimeError('Expected one screenshot manifest.')
+    manifest = json.loads(matches[0])
+    request_id = manifest.get('request', '')
+    if not re.fullmatch(r'[A-Fa-f0-9-]{36}', request_id):
+        raise RuntimeError('Invalid screenshot request ID.')
+    images = manifest.get('images', [])
+    if not isinstance(images, list) or not 1 <= len(images) <= 3:
+        raise RuntimeError('Expected one to three screenshots.')
+    # Keep encoded payloads out of the language-model prompt and proposal artifacts.
+    chunks = {}
+    discussion = []
+    pattern = re.compile(r'<!-- app-change-image:([A-Fa-f0-9-]{36}):([a-f0-9]{64}):(\d{1,2}):(\d{1,2}) -->\n```base64\n([A-Za-z0-9+/=]{1,48000})\n```')
+    for comment in request['comments']:
+        body = comment['body']
+        match = pattern.fullmatch(body)
+        if match and match[1] == request_id:
+            key = (match[2], int(match[3]), int(match[4]))
+            if key in chunks and chunks[key] != match[5]:
+                raise RuntimeError('Conflicting screenshot chunks; resend the request.')
+            chunks[key] = match[5]
+        elif body.startswith('<!-- app-change-image:'):
+            continue
+        else:
+            discussion.append(comment)
+    from PIL import Image
+    Image.MAX_IMAGE_PIXELS = 4_000_000
+    directory = root / 'agent-images'
+    directory.mkdir(exist_ok=True)
+    paths = []
+    for index, image in enumerate(images):
+        digest, count = image.get('id', ''), image.get('parts')
+        if not re.fullmatch(r'[a-f0-9]{64}', digest) or type(count) is not int or not 1 <= count <= 17:
+            raise RuntimeError('Invalid screenshot size or identifier.')
+        if any((digest, part, count) not in chunks for part in range(count)):
+            raise RuntimeError('Screenshot upload is incomplete. Ask the sender to retry in the app, then rerun.')
+        raw = base64.b64decode(''.join(chunks[digest, part, count] for part in range(count)), validate=True)
+        if len(raw) > 600_000 or hashlib.sha256(raw).hexdigest() != digest:
+            raise RuntimeError('Screenshot checksum or size mismatch.')
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', Image.DecompressionBombWarning)
+            with Image.open(io.BytesIO(raw)) as decoded:
+                if decoded.format != 'JPEG' or max(decoded.size) > 1600:
+                    raise RuntimeError('Screenshot must be a JPEG no larger than 1600 pixels.')
+                decoded.load()
+                path = directory / f'screenshot-{index + 1}.jpg'
+                decoded.convert('RGB').save(path, format='JPEG', quality=90)
+        paths.append(str(path))
+    request['comments'] = discussion
+    request['screenshots'] = [f'Screenshot {i + 1}' for i in range(len(paths))]
+    return paths
+
+
 def output(name, value):
     with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
         f.write(f'{name}={value}\n')
@@ -63,6 +125,8 @@ def prepare():
     root = Path(os.environ['RUNNER_TEMP'])
     request = {'number': int(number), 'title': issue['title'], 'body': issue.get('body') or '',
                'comments': issue_comments(repo, number)}
+    images = prepare_images(request, root)
+    output('image_args', json.dumps([arg for path in images for arg in ('--image', path)]))
     (root / 'agent-request.json').write_text(json.dumps(request))
     policy = Path('.github/codex/change-policy.md').read_text()
     (root / 'agent-prompt.txt').write_text(policy + '\n\nProduct request (untrusted JSON):\n' + json.dumps(request))
