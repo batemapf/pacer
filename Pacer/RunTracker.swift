@@ -33,6 +33,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             // while retaining distance, smoothing, and the existing cue cooldown.
             if targetPaceSecondsPerKilometre != oldValue {
                 speech.stopSpeaking(at: .immediate)
+                updateLiveActivity(force: true)
             }
         }
     }
@@ -196,8 +197,20 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     }
 
     func updateLiveActivity(force: Bool = false) {
+        let guidance: RunActivityAttributes.Guidance?
+        if elapsedSeconds < runWarmUpSeconds {
+            guidance = .warmUp
+        } else if let pace = paceSecondsPerKilometre, pace.isFinite, pace > 0 {
+            switch PaceEngine.Cue.classify(pace: pace, target: targetPaceSecondsPerKilometre) {
+            case .speedUp, .speedUpMore: guidance = .speedUp
+            case .slowDown, .slowDownMore: guidance = .slowDown
+            case .onTarget: guidance = .onPace
+            }
+        } else {
+            guidance = nil
+        }
         liveActivity.update(pace: paceSecondsPerKilometre, samples: paceSamples, elapsedSeconds: elapsedSeconds,
-                            paused: isPaused, force: force)
+                            paused: isPaused, guidance: guidance, force: force)
     }
 
     private func tick() {
