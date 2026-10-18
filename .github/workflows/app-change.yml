@@ -25,6 +25,7 @@ jobs:
         github.event.issue.state == 'open' &&
         contains(github.event.issue.labels.*.name, 'ready-for-agent') &&
         contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
+        !startsWith(github.event.comment.body, '<!-- app-change-image:') &&
         !startsWith(github.event.comment.body, '**Codex:') &&
         !startsWith(github.event.comment.body, 'Codex proposed this change:')))
     runs-on: macos-15
@@ -38,10 +39,13 @@ jobs:
         with:
           ref: main
           persist-credentials: false
+      - name: Install bounded screenshot decoder
+        run: python3 -m pip install --disable-pip-version-check --target "$RUNNER_TEMP/image-deps" Pillow==11.3.0
       - name: Authorize requester and prepare trusted prompt
         id: prepare
         env:
           GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: ${{ runner.temp }}/image-deps
         run: python3 scripts/app-change-agent.py prepare
       - name: Confirm agent secrets are configured
         if: steps.prepare.outputs.run == 'true'
@@ -64,6 +68,7 @@ jobs:
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           codex-version: '0.162.1'
+          codex-args: ${{ steps.prepare.outputs.image_args }}
           permission-profile: ':workspace'
           safety-strategy: drop-sudo
           prompt-file: ${{ runner.temp }}/agent-prompt.txt

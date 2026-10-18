@@ -281,3 +281,19 @@ recovery of GPS, music/headphone ducking, several minutes with the screen locked
 stopping (no subsequent cues/location indicator), and force-quit behavior.
 
 No location data leaves the app. There is no analytics, backend, or microphone access. Running needs no credentials; optional change requests use the issue-only credential injected into TestFlight builds.
+
+### Screenshots in change requests
+
+Change app accepts up to three screenshots from the system photo picker; no
+full-library permission is needed. Preview or remove images before sending.
+Images are resized to a maximum 1600-pixel edge, re-encoded as JPEG without photo
+metadata, and saved with the local draft until delivery succeeds. Screenshots,
+like request text, are public: remove personal details before sending.
+
+The issue-only GitHub API credential cannot upload ordinary GitHub image assets.
+Instead the app stores bounded, checksummed image chunks as issue comments.
+These are encoded attachments rather than inline GitHub image previews. The
+workflow reconstructs and validates them, strips encoded data from the text
+prompt, and supplies actual images to Codex. Incomplete uploads stop agent work;
+retry from the app before a maintainer starts the agent again. No new service,
+credential, or expanded token permission is required.

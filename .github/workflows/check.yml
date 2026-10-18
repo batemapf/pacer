@@ -43,7 +43,8 @@ jobs:
       - name: Validate TestFlight scripts and profile checks
         run: |
           bash -n scripts/publish-testflight.sh
-          python3 -m unittest discover -s scripts/tests -v
+          python3 -m pip install --disable-pip-version-check --target "$RUNNER_TEMP/image-deps" Pillow==11.3.0
+          PYTHONPATH="$RUNNER_TEMP/image-deps" python3 -m unittest discover -s scripts/tests -v
       - name: Test pace engine
         run: swift test
       - name: Build iOS app without signing

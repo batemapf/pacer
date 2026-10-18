@@ -1,6 +1,11 @@
 name: Verify native feedback credential
 on:
   workflow_dispatch:
+    inputs:
+      keep_open_for_agent_test:
+        description: Leave the synthetic screenshot request open for a maintainer-approved visual agent test
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -10,12 +15,22 @@ jobs:
     timeout-minutes: 5
     environment: testflight
     steps:
+      - uses: actions/checkout@v4
+      - name: Install screenshot decoder
+        run: python3 -m pip install --disable-pip-version-check --target "$RUNNER_TEMP/image-deps" Pillow==11.3.0
       - name: Create, read, and close a native-style test request
         env:
           APP_CHANGE_GH_TOKEN: ${{ secrets.APP_CHANGE_GH_TOKEN }}
+          KEEP_OPEN: ${{ inputs.keep_open_for_agent_test }}
+          PYTHONPATH: ${{ runner.temp }}/image-deps
         run: |
           python3 - <<'PY'
-          import json, os, time, urllib.request, uuid
+          import base64, hashlib, importlib.util, io, json, os, time, urllib.request, uuid
+          from pathlib import Path
+          from PIL import Image, ImageDraw
+          spec = importlib.util.spec_from_file_location('feedback_agent', 'scripts/app-change-agent.py')
+          agent = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(agent)
           token = os.environ.get('APP_CHANGE_GH_TOKEN', '')
           if not token:
               raise SystemExit('APP_CHANGE_GH_TOKEN is missing.')
@@ -30,14 +45,35 @@ jobs:
                   'User-Agent': 'Speed-Up-or-Slow-Down', 'Cache-Control': 'no-cache'})
               with urllib.request.urlopen(request, timeout=20) as response:
                   return json.load(response)
-          marker = '<!-- app-change-request:' + str(uuid.uuid4()) + ' -->'
+          request_id = str(uuid.uuid4())
+          marker = '<!-- app-change-request:' + request_id + ' -->'
+          screenshot = Image.new('RGB', (800, 400), 'purple')
+          ImageDraw.Draw(screenshot).text((80, 140), 'ORBIT 4729', fill='white', font_size=72)
+          buffer = io.BytesIO()
+          screenshot.save(buffer, format='JPEG', quality=75)
+          raw = buffer.getvalue()
+          digest = hashlib.sha256(raw).hexdigest()
+          encoded = base64.b64encode(raw).decode()
+          parts = [encoded[i:i + 48000] for i in range(0, len(encoded), 48000)]
+          manifest = {'request': request_id, 'images': [{'id': digest, 'parts': len(parts)}]}
+          body = ('Automated visual verification: report the exact verification code visible in the attached screenshot and its background color. Return declined because no product change is requested; do not edit files.\n\n' + marker +
+                  '\n<!-- app-change-images:' + json.dumps(manifest) + ' -->')
           issue = api(root, 'POST', {
               'title': 'Native feedback smoke test — no agent work needed',
-              'body': 'Automated verification of the native app submission contract. No product change requested.\n\nName supplied by tester (unverified): Anonymous tester\n\n' + marker,
+              'body': body,
               'labels': ['app-change']})
           number = issue['number']
           url = 'https://github.com/batemapf/pacer/issues/' + str(number)
           try:
+              for i, part in enumerate(parts):
+                  api(root + '/' + str(number) + '/comments', 'POST', {'body':
+                      f'<!-- app-change-image:{request_id}:{digest}:{i}:{len(parts)} -->\n```base64\n{part}\n```'})
+              comments = api(root + '/' + str(number) + '/comments?per_page=100')
+              request = {'body': body, 'comments': [{'body': c['body']} for c in comments]}
+              paths = agent.prepare_images(request, Path(os.environ['RUNNER_TEMP']))
+              assert len(paths) == 1
+              with Image.open(paths[0]) as decoded:
+                  assert decoded.size == (800, 400)
               assert issue['html_url'] == url
               assert 'ready-for-agent' not in [label['name'] for label in issue['labels']]
               for attempt in range(4):
@@ -49,7 +85,8 @@ jobs:
                   raise AssertionError('Receipt lookup did not find the new issue after settling.')
               print('Native-style POST and retry receipt lookup passed: ' + url)
           finally:
-              api(root + '/' + str(number), 'PATCH', {'state': 'closed', 'state_reason': 'not_planned'})
+              if os.environ.get('KEEP_OPEN') != 'true':
+                  api(root + '/' + str(number), 'PATCH', {'state': 'closed', 'state_reason': 'not_planned'})
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
-              summary.write('Verified native submission, receipt, retry lookup, and issue close with the dedicated token: ' + url + '\n')
+              summary.write('Verified native submission, screenshot comment upload, image reconstruction, and retry lookup with the dedicated token: ' + url + '\n')
           PY

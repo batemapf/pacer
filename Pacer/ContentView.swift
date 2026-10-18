@@ -1,6 +1,8 @@
 import SwiftUI
 import Charts
 import AVFoundation
+import PhotosUI
+import CryptoKit
 
 struct ContentView: View {
     @StateObject private var run = RunTracker()
@@ -304,6 +306,9 @@ private struct AppChangeView: View {
     @AppStorage("appChangeDraft") private var draft = ""
     @AppStorage("appChangeName") private var name = ""
     @AppStorage("appChangeRequestID") private var requestID = ""
+    @State private var screenshots: [ChangeScreenshot] = ChangeScreenshot.load()
+    @State private var photoItems: [PhotosPickerItem] = []
+    @State private var loadingPhotos = false
     @State private var sending = false
     @State private var errorMessage: String?
     @State private var sentNumber: Int?
@@ -331,6 +336,73 @@ private struct AppChangeView: View {
         sentURL = url
         draft = ""
         requestID = ""
+        screenshots = []
+        ChangeScreenshot.save(screenshots)
+    }
+
+    private func comments(_ number: Int) async throws -> [ScreenshotComment] {
+        var result: [ScreenshotComment] = []
+        for page in 1...100 {
+            let url = URL(string: "https://api.github.com/repos/batemapf/pacer/issues/\(number)/comments?per_page=100&page=\(page)")!
+            let (data, response) = try await URLSession.shared.data(for: githubRequest(url))
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+            let batch = try JSONDecoder().decode([ScreenshotComment].self, from: data)
+            result += batch
+            if batch.count < 100 { return result }
+        }
+        throw URLError(.dataLengthExceedsMaximum)
+    }
+
+    private func uploadScreenshots(to number: Int) async throws {
+        guard !screenshots.isEmpty else { return }
+        let existing = try await comments(number)
+        for screenshot in screenshots {
+            let parts = screenshot.parts
+            for (index, part) in parts.enumerated() {
+                let marker = "<!-- app-change-image:\(requestID):\(screenshot.id):\(index):\(parts.count) -->"
+                let body = marker + "\n```base64\n" + part + "\n```"
+                if existing.contains(where: { $0.body == body }) { continue }
+                var post = githubRequest(URL(string: "https://api.github.com/repos/batemapf/pacer/issues/\(number)/comments")!)
+                post.httpMethod = "POST"
+                post.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                post.httpBody = try JSONEncoder().encode(ScreenshotComment(body: body))
+                let (_, response) = try await URLSession.shared.data(for: post)
+                guard (response as? HTTPURLResponse)?.statusCode == 201 else { throw URLError(.badServerResponse) }
+            }
+        }
+    }
+
+    @MainActor private func loadPhotos(_ items: [PhotosPickerItem]) async {
+        loadingPhotos = true
+        errorMessage = nil
+        defer { loadingPhotos = false; photoItems = [] }
+        do {
+            var selected = screenshots
+            for item in items.prefix(3 - selected.count) {
+                guard let data = try await item.loadTransferable(type: Data.self),
+                      data.count <= 30_000_000, let image = UIImage(data: data) else { throw URLError(.cannotDecodeContentData) }
+                let scale = min(1, 1600 / max(image.size.width, image.size.height))
+                let size = CGSize(width: max(1, image.size.width * scale), height: max(1, image.size.height * scale))
+                let format = UIGraphicsImageRendererFormat()
+                format.scale = 1
+                format.opaque = true
+                let resized = UIGraphicsImageRenderer(size: size, format: format).image { context in
+                    UIColor.white.setFill()
+                    context.fill(CGRect(origin: .zero, size: size))
+                    image.draw(in: CGRect(origin: .zero, size: size))
+                }
+                guard let jpeg = resized.jpegData(compressionQuality: 0.75), jpeg.count <= 600_000 else {
+                    throw URLError(.dataLengthExceedsMaximum)
+                }
+                let screenshot = ChangeScreenshot(data: jpeg)
+                if !selected.contains(where: { $0.id == screenshot.id }) { selected.append(screenshot) }
+            }
+            try ChangeScreenshot.persist(selected)
+            screenshots = selected
+            requestID = ""
+        } catch {
+            errorMessage = "Could not save the selected screenshots. Try a smaller image."
+        }
     }
 
     @MainActor private func submit() async {
@@ -352,6 +424,7 @@ private struct AppChangeView: View {
                     guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
                     let recent = try JSONDecoder().decode([ChangeReceipt].self, from: data)
                     if let existing = recent.first(where: { $0.body?.contains(marker) == true }) {
+                        try await uploadScreenshots(to: existing.number)
                         try showReceipt(existing)
                         return
                     }
@@ -363,7 +436,14 @@ private struct AppChangeView: View {
             submission.setValue("application/json", forHTTPHeaderField: "Content-Type")
             let author = name.trimmingCharacters(in: .whitespacesAndNewlines)
             let title = "App change: " + String((request.split(separator: "\n").first.map(String.init) ?? request).prefix(100))
-            let body = request + "\n\n---\nSubmitted from Speed Up or Slow Down \(version) (\(build)).\nName supplied by tester (unverified): \(author.isEmpty ? "Anonymous tester" : author)\n\nA maintainer must apply ready-for-agent before Codex runs.\n\n" + marker
+            var body = request + "\n\n---\nSubmitted from Speed Up or Slow Down \(version) (\(build)).\nName supplied by tester (unverified): \(author.isEmpty ? "Anonymous tester" : author)\n\nA maintainer must apply ready-for-agent before Codex runs.\n\n" + marker
+            if !screenshots.isEmpty {
+                let manifest = ScreenshotManifest(request: requestID, images: screenshots.map {
+                    ScreenshotManifest.Image(id: $0.id, parts: $0.parts.count)
+                })
+                let json = String(decoding: try JSONEncoder().encode(manifest), as: UTF8.self)
+                body += "\n\nScreenshots are stored as encoded image comments for the coding agent. If delivery is interrupted, the sender must retry before agent review.\n<!-- app-change-images:" + json + " -->"
+            }
             submission.httpBody = try JSONEncoder().encode(ChangeSubmission(title: title, body: body, labels: ["app-change"]))
             let (data, response) = try await URLSession.shared.data(for: submission)
             guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
@@ -375,7 +455,9 @@ private struct AppChangeView: View {
                 }
                 return
             }
-            try showReceipt(JSONDecoder().decode(ChangeReceipt.self, from: data))
+            let receipt = try JSONDecoder().decode(ChangeReceipt.self, from: data)
+            try await uploadScreenshots(to: receipt.number)
+            try showReceipt(receipt)
         } catch {
             errorMessage = "Could not confirm delivery. Your draft is saved; please retry."
         }
@@ -400,6 +482,33 @@ private struct AppChangeView: View {
                         .font(.caption).foregroundStyle(.red)
                 }
             }
+            Section("Screenshots (optional)") {
+                ForEach(screenshots) { screenshot in
+                    HStack {
+                        if let image = UIImage(data: screenshot.data) {
+                            Image(uiImage: image).resizable().scaledToFit().frame(height: 150)
+                        }
+                        Spacer()
+                        Button("Remove", role: .destructive) {
+                            var remaining = screenshots
+                            remaining.removeAll { $0.id == screenshot.id }
+                            do {
+                                try ChangeScreenshot.persist(remaining)
+                                screenshots = remaining
+                                requestID = ""
+                            } catch { errorMessage = "Could not save screenshot changes. Please retry." }
+                        }.disabled(sending || loadingPhotos)
+                    }
+                }
+                if screenshots.count < 3 {
+                    PhotosPicker(selection: $photoItems, maxSelectionCount: 3 - screenshots.count, matching: .images) {
+                        Label("Add screenshots", systemImage: "photo.badge.plus")
+                    }.disabled(sending || loadingPhotos)
+                }
+                if loadingPhotos { ProgressView("Saving screenshots…") }
+                Text("Up to 3 images. Review them before sending: screenshots are public and visible to the coding agent. Images are resized and photo metadata is removed.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section {
                 TextField("Name (optional)", text: $name)
                     .textContentType(.nickname).disabled(sending)
@@ -413,7 +522,7 @@ private struct AppChangeView: View {
                         if sending { Spacer(); ProgressView() }
                     }
                 }
-                .disabled(sending || request.count < 5 || request.count > 4_000 || name.count > 80 || githubToken.isEmpty)
+                .disabled(sending || loadingPhotos || request.count < 5 || request.count > 4_000 || name.count > 80 || githubToken.isEmpty)
                 if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
                 if githubToken.isEmpty {
                     Text("Change requests aren’t available in this build yet.")
@@ -424,7 +533,10 @@ private struct AppChangeView: View {
         .navigationTitle("Change app")
         .onChange(of: draft) { _, _ in if !sending { requestID = "" } }
         .onChange(of: name) { _, _ in if !sending { requestID = "" } }
-        .interactiveDismissDisabled(sending)
+        .onChange(of: photoItems) { _, items in
+            if !items.isEmpty { Task { await loadPhotos(items) } }
+        }
+        .interactiveDismissDisabled(sending || loadingPhotos)
     }
 }
 
@@ -438,4 +550,36 @@ private struct ChangeReceipt: Decodable {
     let number: Int
     let html_url: String
     let body: String?
+}
+
+private struct ScreenshotComment: Codable { let body: String }
+
+private struct ScreenshotManifest: Encodable {
+    struct Image: Encodable { let id: String; let parts: Int }
+    let request: String
+    let images: [Image]
+}
+
+private struct ChangeScreenshot: Codable, Identifiable {
+    let data: Data
+    var id: String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
+    var parts: [String] {
+        let text = Array(data.base64EncodedString())
+        return stride(from: 0, to: text.count, by: 48_000).map {
+            String(text[$0..<min($0 + 48_000, text.count)])
+        }
+    }
+    private static var file: URL {
+        URL.applicationSupportDirectory.appending(path: "change-screenshots.json")
+    }
+    static func load() -> [Self] {
+        guard let bytes = try? Data(contentsOf: file),
+              let images = try? JSONDecoder().decode([Self].self, from: bytes) else { return [] }
+        return Array(images.prefix(3))
+    }
+    static func persist(_ images: [Self]) throws {
+        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try JSONEncoder().encode(images).write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
+    static func save(_ images: [Self]) { try? persist(images) }
 }
