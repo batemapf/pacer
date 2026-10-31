@@ -3,15 +3,36 @@ import Combine
 import CoreLocation
 import AVFoundation
 
-struct PaceSample: Identifiable {
-    let id: Int
-    let elapsedSeconds: Double
-    let secondsPerKilometre: Double
-    let segment: Int
-    let isWarmUp: Bool
-}
-
 final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, AVSpeechSynthesizerDelegate {
+    @Published private(set) var savedRuns: [SavedRun] = []
+    @Published private(set) var historyError: String?
+    private var historyLoaded = false
+    private var runDate: Date?
+    private let historyFile = URL.applicationSupportDirectory.appending(path: "run-history.json")
+
+    func retryHistory() {
+        if !historyLoaded {
+            do {
+                savedRuns = try RunHistory.load(from: historyFile)
+                historyLoaded = true
+                historyError = nil
+            } catch {
+                historyError = "Could not load Run History. Retry before starting a run; existing history has not been overwritten."
+            }
+        } else {
+            persistHistory()
+        }
+    }
+
+    private func persistHistory() {
+        do {
+            try RunHistory.save(savedRuns, to: historyFile)
+            historyError = nil
+        } catch {
+            historyError = "Run History changes are only in memory. Tap Retry to save before closing the app."
+        }
+    }
+
     @Published private(set) var isRunning = false
     @Published private(set) var isPaused = false
     @Published private(set) var paceSecondsPerKilometre: Double? = nil
@@ -82,6 +103,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
 
     override init() {
         super.init()
+        retryHistory()
         location.delegate = self
         speech.delegate = self
         location.activityType = .fitness
@@ -94,6 +116,10 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
 
     func start() {
         guard !isRunning else { return }
+        guard historyLoaded, historyError == nil else {
+            status = "Open Run History and tap Retry before starting another run."
+            return
+        }
         switch location.authorizationStatus {
         case .notDetermined:
             pendingStart = true
@@ -105,6 +131,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             }
             pendingStart = false
             let start = Date()
+            runDate = start
             runWarmUpSeconds = Double(warmUpMinutes * 60)
             warmUpEndsAt = runWarmUpSeconds > 0 ? start.addingTimeInterval(runWarmUpSeconds) : nil
             warmUpSpeechPending = warmUpEndsAt != nil
@@ -181,6 +208,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
     }
 
     func stop() {
+        guard isRunning else { return }
         tick()
         pendingStart = false
         location.stopUpdatingLocation()
@@ -192,7 +220,13 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         warmUpRemainingText = ""
         speech.stopSpeaking(at: .immediate)
         releaseAudio()
-        status = "Run ended."
+        if let date = runDate {
+            savedRuns.insert(SavedRun(id: UUID(), date: date, elapsedSeconds: elapsedSeconds,
+                                     distanceMetres: distanceMetres, samples: paceSamples), at: 0)
+            persistHistory()
+            runDate = nil
+        }
+        status = historyError == nil ? "Run ended and saved to Run History." : "Run ended. Open Run History to retry saving."
         liveActivity.update(pace: nil, samples: paceSamples, elapsedSeconds: elapsedSeconds, paused: false, force: true, ended: true)
     }
 

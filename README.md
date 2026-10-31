@@ -149,8 +149,17 @@ hustle,” and “We ordered a jog, not a rocket launch.”
 
 Distance is an **estimate** from integrating accepted speed readings. Gaps longer
 than eight seconds are excluded, so distance can undercount during outages.
-No route is recorded. Run state exists only in memory; there is no saved history,
-Apple Watch support or HealthKit integration.
+No route is recorded. Completed runs are saved locally when stopped (including
+runs ended by a location permission change). Open **Run History** to view runs,
+their pace graphs, and all-time run count, active time, distance, and average pace.
+History includes warm-up regardless of the live overall-pace setting and excludes
+manual pauses. Aggregate pace is total active time divided by total distance;
+zero distance displays no pace. Dates show the original start time. Units follow
+your current preference. History survives app relaunch; an unfinished run is still
+only in memory and is lost on termination. There is no cloud sync or import of
+past runs. Saving failures show a Retry action in Run History; retry before
+closing the app. Starting another run waits until history loads/saves successfully.
+There is no Apple Watch support or HealthKit integration.
 
 Speech uses an audio session that requests music ducking and interruption of
 other spoken audio, then releases the session after each cue. Background location
