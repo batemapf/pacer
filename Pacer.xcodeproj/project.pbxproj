@@ -14,6 +14,7 @@
 		A00000000000000000000007 /* Sources/PacerCore/DistanceUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000007 /* Sources/PacerCore/DistanceUnit.swift */; };
 		A00000000000000000000008 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000008 /* Assets.xcassets */; };
 		A00000000000000000000009 /* CoachingPhrases.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000009 /* CoachingPhrases.swift */; };
+		A20000000000000000000001 /* RunHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,6 +27,7 @@
 		B00000000000000000000007 /* Sources/PacerCore/DistanceUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/PacerCore/DistanceUnit.swift; sourceTree = SOURCE_ROOT; };
 		B00000000000000000000008 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B00000000000000000000009 /* CoachingPhrases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/PacerCore/CoachingPhrases.swift; sourceTree = SOURCE_ROOT; };
+		B20000000000000000000001 /* RunHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/PacerCore/RunHistory.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -45,6 +47,7 @@
 				C00000000000000000000002 /* Pacer */,
  C10000000000000000000001,
 				B00000000000000000000004 /* Sources/PacerCore/PaceEngine.swift */,
+                B20000000000000000000001 /* RunHistory.swift */,
 				B00000000000000000000007 /* Sources/PacerCore/DistanceUnit.swift */,
 				B00000000000000000000009 /* CoachingPhrases.swift */,
 				C00000000000000000000003 /* Products */,
@@ -146,6 +149,7 @@
 				A00000000000000000000003 /* RunTracker.swift in Sources */,
  A10000000000000000000001, A10000000000000000000002,
 				A00000000000000000000004 /* Sources/PacerCore/PaceEngine.swift in Sources */,
+                A20000000000000000000001 /* RunHistory.swift in Sources */,
 				A00000000000000000000007 /* Sources/PacerCore/DistanceUnit.swift in Sources */,
 				A00000000000000000000009 /* CoachingPhrases.swift in Sources */,
 			);

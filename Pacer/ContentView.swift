@@ -9,6 +9,7 @@ struct ContentView: View {
     @AppStorage("distanceUnit") private var unit: DistanceUnit = .kilometres
     @AppStorage("colorfulAppearance") private var colorfulAppearance = false
     @State private var showingSettings = false
+    @State private var showingHistory = false
 
     private var displayedTarget: Binding<Double> {
         Binding(
@@ -35,6 +36,9 @@ struct ContentView: View {
                         Image(systemName: "gearshape").font(.title2)
                             .frame(minWidth: 44, minHeight: 44)
                     }.accessibilityLabel("Settings")
+                }
+                Button { showingHistory = true } label: {
+                    Label("Run History", systemImage: "clock.arrow.circlepath")
                 }
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 12) {
@@ -131,6 +135,9 @@ struct ContentView: View {
         .sheet(isPresented: $showingSettings) {
             RunSettingsView(run: run, unit: $unit)
         }
+        .sheet(isPresented: $showingHistory) {
+            RunHistoryView(run: run, unit: unit)
+        }
         .onAppear { roundTarget() }
         .onChange(of: unit) { _, _ in
             roundTarget()
@@ -205,12 +212,86 @@ private struct PaceGraphView: View {
                 .chartYAxisLabel("min/\(unit.symbol) · faster ↑")
                 .frame(height: 200)
             }
-            Text("Smoothed GPS pace. Gaps indicate unavailable pace. Kept until your next run.")
+            Text("Smoothed GPS pace. Gaps indicate unavailable pace.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
 }
 
+
+private struct RunHistoryView: View {
+    @ObservedObject var run: RunTracker
+    let unit: DistanceUnit
+    @Environment(\.dismiss) private var dismiss
+
+    private var totalSeconds: Double { run.savedRuns.reduce(0) { $0 + $1.elapsedSeconds } }
+    private var totalMetres: Double { run.savedRuns.reduce(0) { $0 + $1.distanceMetres } }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if let error = run.historyError {
+                    Section {
+                        Text(error)
+                        Button("Retry") { run.retryHistory() }
+                    }
+                }
+                Section("All runs") {
+                    LabeledContent("Runs", value: "\(run.savedRuns.count)")
+                    historyMetrics(seconds: totalSeconds, metres: totalMetres, unit: unit)
+                    Text("Totals and average pace include warm-up and exclude manual pauses. Average pace uses total time divided by total distance.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Section("Completed runs") {
+                    if run.savedRuns.isEmpty {
+                        Text("Stop a run to save it here automatically. Runs are stored only on this phone.")
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(run.savedRuns) { saved in
+                        NavigationLink {
+                            List {
+                                Section {
+                                    Text(saved.date.formatted(date: .abbreviated, time: .standard))
+                                    historyMetrics(seconds: saved.elapsedSeconds, metres: saved.distanceMetres, unit: unit)
+                                    Text("Includes warm-up; excludes manual pauses.")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                                Section {
+                                    PaceGraphView(samples: saved.samples, elapsedSeconds: saved.elapsedSeconds,
+                                                  isRunning: false, unit: unit)
+                                }
+                            }
+                            .navigationTitle("Saved run")
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(saved.date.formatted(date: .abbreviated, time: .standard))
+                                Text("\(unit.distanceText(metres: saved.distanceMetres)) · \(historyDuration(saved.elapsedSeconds))")
+                                    .font(.subheadline).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Run History")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+private func historyDuration(_ seconds: Double) -> String {
+    let total = Int(seconds)
+    return String(format: "%d:%02d:%02d", total / 3600, (total / 60) % 60, total % 60)
+}
+
+@ViewBuilder private func historyMetrics(seconds: Double, metres: Double, unit: DistanceUnit) -> some View {
+    LabeledContent("Active time", value: historyDuration(seconds))
+    LabeledContent("Distance", value: unit.distanceText(metres: metres))
+    LabeledContent("Average pace", value: "\(unit.paceText(secondsPerKilometre: RunHistory.averagePace(seconds: seconds, metres: metres))) / \(unit.symbol)")
+}
 
 private struct RunSettingsView: View {
     @ObservedObject var run: RunTracker
