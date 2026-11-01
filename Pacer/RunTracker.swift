@@ -6,6 +6,7 @@ import AVFoundation
 final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, AVSpeechSynthesizerDelegate {
     @Published private(set) var savedRuns: [SavedRun] = []
     @Published private(set) var historyError: String?
+    @Published private(set) var completedRunID: UUID?
     private var historyLoaded = false
     private var runDate: Date?
     private let historyFile = URL.applicationSupportDirectory.appending(path: "run-history.json")
@@ -22,6 +23,17 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         } else {
             persistHistory()
         }
+    }
+
+    func deleteRun(_ id: UUID) throws {
+        guard historyLoaded, historyError == nil else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        // Save first so a failed deletion leaves the visible history intact.
+        let remaining = savedRuns.filter { $0.id != id }
+        try RunHistory.save(remaining, to: historyFile)
+        savedRuns = remaining
+        if completedRunID == id { completedRunID = nil }
     }
 
     private func persistHistory() {
@@ -131,6 +143,7 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
             }
             pendingStart = false
             let start = Date()
+            completedRunID = nil
             runDate = start
             runWarmUpSeconds = Double(warmUpMinutes * 60)
             warmUpEndsAt = runWarmUpSeconds > 0 ? start.addingTimeInterval(runWarmUpSeconds) : nil
@@ -221,8 +234,10 @@ final class RunTracker: NSObject, ObservableObject, CLLocationManagerDelegate, A
         speech.stopSpeaking(at: .immediate)
         releaseAudio()
         if let date = runDate {
-            savedRuns.insert(SavedRun(id: UUID(), date: date, elapsedSeconds: elapsedSeconds,
-                                     distanceMetres: distanceMetres, samples: paceSamples), at: 0)
+            let saved = SavedRun(id: UUID(), date: date, elapsedSeconds: elapsedSeconds,
+                                 distanceMetres: distanceMetres, samples: paceSamples)
+            savedRuns.insert(saved, at: 0)
+            completedRunID = saved.id
             persistHistory()
             runDate = nil
         }
