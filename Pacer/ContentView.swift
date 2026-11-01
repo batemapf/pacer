@@ -110,6 +110,19 @@ struct ContentView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 12) {
+                if run.completedRunID != nil && !run.isRunning {
+                    VStack(spacing: 4) {
+                        Label(run.historyError == nil ? "Run saved" : "Run not saved yet",
+                              systemImage: run.historyError == nil ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                            .font(.headline)
+                        Text(run.historyError == nil
+                             ? "Ready for a new run. Your summary is above."
+                             : "Open Run History and retry saving before starting again.")
+                            .font(.caption).multilineTextAlignment(.center)
+                        Button("View Run History") { showingHistory = true }
+                    }
+                    .accessibilityElement(children: .contain)
+                }
                 if run.isRunning {
                     Button {
                         if run.isPaused { run.resume() } else { run.pause() }
@@ -122,7 +135,7 @@ struct ContentView: View {
                 Button {
                     if run.isRunning { run.stop() } else { run.start() }
                 } label: {
-                    Text(run.isRunning ? "Stop run" : "Start run")
+                    Text(run.isRunning ? "Stop run" : (run.completedRunID != nil ? "Start new run" : "Start run"))
                         .frame(maxWidth: .infinity).padding(.vertical, 10)
                 }.buttonStyle(.borderedProminent)
                     .tint(run.isRunning ? .red : (colorfulAppearance ? .teal : .blue))
@@ -224,6 +237,9 @@ private struct RunHistoryView: View {
     let unit: DistanceUnit
     @Environment(\.dismiss) private var dismiss
 
+    @State private var runToDelete: SavedRun?
+    @State private var showingDeleteError = false
+
     private var totalSeconds: Double { run.savedRuns.reduce(0) { $0 + $1.elapsedSeconds } }
     private var totalMetres: Double { run.savedRuns.reduce(0) { $0 + $1.distanceMetres } }
 
@@ -269,8 +285,40 @@ private struct RunHistoryView: View {
                                     .font(.subheadline).foregroundStyle(.secondary)
                             }
                         }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) { runToDelete = saved } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            .disabled(run.historyError != nil)
+                        }
                     }
                 }
+                if !run.savedRuns.isEmpty {
+                    Section {
+                        Text("Swipe left on a run to delete it from this phone and from your totals.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .confirmationDialog("Delete this run?", isPresented: Binding(
+                get: { runToDelete != nil },
+                set: { if !$0 { runToDelete = nil } }
+            ), titleVisibility: .visible) {
+                if let saved = runToDelete {
+                    Button("Delete run", role: .destructive) {
+                        do { try run.deleteRun(saved.id) }
+                        catch { showingDeleteError = true }
+                        runToDelete = nil
+                    }
+                }
+                Button("Cancel", role: .cancel) { runToDelete = nil }
+            } message: {
+                Text("This permanently removes the run and its pace graph from Run History. This cannot be undone.")
+            }
+            .alert("Could not delete run", isPresented: $showingDeleteError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("Your run is still in Run History. Try deleting it again.")
             }
             .navigationTitle("Run History")
             .toolbar {

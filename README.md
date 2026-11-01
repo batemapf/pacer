@@ -159,6 +159,12 @@ your current preference. History survives app relaunch; an unfinished run is sti
 only in memory and is lost on termination. There is no cloud sync or import of
 past runs. Saving failures show a Retry action in Run History; retry before
 closing the app. Starting another run waits until history loads/saves successfully.
+After stopping, a **Run saved** confirmation appears above **Start new run**;
+the finished summary stays visible until the next run starts. If saving fails,
+the confirmation asks you to retry in Run History instead. In **Run History**,
+swipe left on a completed run and choose **Delete**, then confirm permanent
+removal of the run and graph. Totals update after deletion saves successfully;
+a failed deletion keeps the run. This uses deletion rather than a separate archive.
 There is no Apple Watch support or HealthKit integration.
 
 Speech uses an audio session that requests music ducking and interruption of
